@@ -9,7 +9,8 @@ Obj *Locals;
 // program = { 多个代码块语句(compoundStmt)
 // compoundStmt = stmt* }
 // stmt = return语句返回;隔开的expr表达式 或
-//			if ( 表达式expr ) stmt else stmt
+//			if ( 表达式expr ) stmt else stmt 或
+//			for ( exprStmt expr?; expr? ) stmt
 //			{ 代码块语句(compoundStmt) 或
 //			exprStmt(表达式语句) 后续会支持其他类型的语句
 // exprStmt = 分号隔开的expr 或空语句;
@@ -137,6 +138,33 @@ static Node *stmt(Token **Rest, Token *Tok) {
 			Nod->Else = stmt(&Tok, Tok->Next);
 		}
 		*Rest = Tok;
+		return Nod;
+	}
+
+	// 解析for语句
+	if (equal(Tok, "for")) {
+		Node *Nod = newNode(ND_FOR);
+
+		Tok = skip(Tok->Next, "(");
+
+		// for 的初始化语句
+		Nod->Init = exprStmt(&Tok, Tok);
+
+		// for 的条件语句
+		if (!equal(Tok, ";")) {
+			Nod->Cond = expr(&Tok, Tok);
+		}
+		Tok = skip(Tok, ";");
+
+		// for 的递增语句
+		if (!equal(Tok, ")")) {
+			Nod->Inc = expr(&Tok, Tok);
+		}
+		Tok = skip(Tok, ")");
+
+		// for 循环代码块
+		Nod->Then = stmt(Rest, Tok);
+
 		return Nod;
 	}
 

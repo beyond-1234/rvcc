@@ -26,6 +26,7 @@ typedef enum {
 	ND_NUM,
 	ND_ASSIGN,		// 赋值
 	ND_IF,				// IF语句
+	ND_FOR,				// FOR语句
 	ND_RETURN,		// 返回
 	ND_BLOCK,			// { ... } 代码块
 	ND_VAR,				// 变量
@@ -57,10 +58,12 @@ struct Node {
 	Node *LHS;				// 左子树
 	Node *RHS;				// 右子树
 
-	// if 语句
+	// if 语句 或 for 语句
 	Node *Cond;				// 条件
 	Node *Then;				// 符合条件的代码体
 	Node *Else;				// 不符合条件的代码体
+	Node *Init;				// for循环的初始化语句 
+	Node *Inc;				// for循环的递增语句
 
 	// 代码块
 	Node *Body;
