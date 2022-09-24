@@ -62,7 +62,7 @@ static void genAddr(Node *Nod) {
 		return;
 	}
 
-	error("not an lvalue");
+	errorTok(Nod->Tok, "not an lvalue");
 }
 
 static void genExpr(Node *Nod) {
@@ -175,7 +175,7 @@ static void genExpr(Node *Nod) {
 			break;
 	}
 
-	error("invalid expression");
+	errorTok(Nod->Tok, "invalid expression");
 }
 
 static void genStmt(Node *Nod) {
@@ -271,7 +271,7 @@ static void genStmt(Node *Nod) {
 			break;
 	}
 
-  error("invalid statement");
+  errorTok(Nod->Tok, "invalid statement");
 }
 
 

@@ -48,9 +48,10 @@ static Obj *findVar(Token *Tok) {
 }
 
 // 新建一个节点
-static Node *newNode(NodeKind Kind) {
+static Node *newNode(NodeKind Kind, Token *Tok) {
 	Node *Nod = calloc(1, sizeof(Node));
 	Nod->Kind = Kind;
+	Nod->Tok = Tok;
 	return Nod;
 }
 
@@ -65,29 +66,29 @@ static Obj *newLVar(char *Name) {
 }
 
 // 新建一个数字二叉树叶子
-static Node *newNum(int Val) {
-	Node *Nod = newNode(ND_NUM);
+static Node *newNum(int Val, Token *Tok) {
+	Node *Nod = newNode(ND_NUM, Tok);
 	Nod->Val = Val;
 	return Nod;
 }
 
 // 新建一个变量叶子节点
-static Node *newVarNode(Obj *Var) {
-	Node *Nod = newNode(ND_VAR);
+static Node *newVarNode(Obj *Var, Token *Tok) {
+	Node *Nod = newNode(ND_VAR, Tok);
 	Nod->Var = Var;
 	return Nod;
 }
 
 // 新建一个单叉树节点
-static Node *newUnary(NodeKind Kind, Node *Expr) {
-	Node *Nod = newNode(Kind);
+static Node *newUnary(NodeKind Kind, Node *Expr, Token *Tok) {
+	Node *Nod = newNode(Kind, Tok);
 	Nod->LHS = Expr;
 	return Nod;
 }
 
 // 新建一个二叉树节点
-static Node *newBinary(NodeKind Kind, Node *LHS, Node *RHS) {
-	Node *Nod = newNode(Kind);
+static Node *newBinary(NodeKind Kind, Node *LHS, Node *RHS, Token *Tok) {
+	Node *Nod = newNode(Kind, Tok);
 	Nod->LHS = LHS;
 	Nod->RHS = RHS;
 	return Nod;
@@ -96,6 +97,8 @@ static Node *newBinary(NodeKind Kind, Node *LHS, Node *RHS) {
 // 解析复合语句(代码块)
 // compoundStmt = stmt* }
 static Node *compoundStmt(Token **Rest, Token *Tok) {
+	Node *Nod = newNode(ND_BLOCK, Tok);
+
 	// 这里使用了和词法分析类似的单向链表结构
 	// 来表示多个表达式语句
   Node Head = {};
@@ -111,7 +114,6 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	// Nod的Body中存储了{}内解析的语句
 	// Body指的是当前{}中的所有语句构成的链表
 	// } 在这里直接被忽略，没有进入语法树的构建
-	Node *Nod = newNode(ND_BLOCK);
 	Nod->Body = Head.Next;
 	*Rest = Tok->Next;
 	return Nod;
@@ -120,14 +122,15 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 static Node *stmt(Token **Rest, Token *Tok) {
 	// return expr ;
 	if(equal(Tok, "return")) {
-		Node *Nod = newUnary(ND_RETURN, expr(&Tok, Tok->Next));
+		Node *Nod = newNode(ND_RETURN, Tok);
+		Nod->LHS = expr(&Tok, Tok->Next);
 		*Rest = skip(Tok, ";");
 		return Nod;
 	}
 
 	// 解析if语句
 	if (equal(Tok, "if")) {
-		Node *Nod = newNode(ND_IF);
+		Node *Nod = newNode(ND_IF, Tok);
 		// ( expr ) 条件内语句
 		Tok = skip(Tok->Next, "(");
 		Nod->Cond = expr(&Tok, Tok);
@@ -144,7 +147,7 @@ static Node *stmt(Token **Rest, Token *Tok) {
 
 	// 解析for语句
 	if (equal(Tok, "for")) {
-		Node *Nod = newNode(ND_FOR);
+		Node *Nod = newNode(ND_FOR, Tok);
 
 		Tok = skip(Tok->Next, "(");
 
@@ -171,7 +174,7 @@ static Node *stmt(Token **Rest, Token *Tok) {
 
 	// 解析while语句
 	if (equal(Tok, "while")) {
-		Node *Nod = newNode(ND_FOR);
+		Node *Nod = newNode(ND_FOR, Tok);
 
 		Tok = skip(Tok->Next, "(");
 
@@ -204,13 +207,14 @@ static Node *exprStmt(Token **Rest, Token *Tok) {
 		*Rest = Tok->Next;
 		// 将空语句设置为ND_BLOCK
 		// 在codegen部分，当Nod为空时会直接结束循环和当前递归
-		return newNode(ND_BLOCK);
+		return newNode(ND_BLOCK, Tok);
 	}
 
 	// expr? ;
-	Node *Nd = newUnary(ND_EXPR_STMT, expr(&Tok, Tok));
+	Node *Nod = newNode(ND_EXPR_STMT, Tok);
+	Nod->LHS = expr(&Tok, Tok);
   *Rest = skip(Tok, ";");
-  return Nd;
+  return Nod;
 }
 
 static Node *expr(Token **Rest, Token *Tok) {
@@ -223,7 +227,7 @@ static Node *assign(Token **Rest, Token *Tok) {
 
 	// 可能存在递归赋值 a=b=1
 	if(equal(Tok, "=")) {
-		Nod = newBinary(ND_ASSIGN, Nod, assign(&Tok, Tok->Next));
+		return Nod = newBinary(ND_ASSIGN, Nod, assign(Rest, Tok->Next), Tok);
 	}
 
 	*Rest = Tok;
@@ -234,13 +238,14 @@ static Node *equality(Token **Rest, Token *Tok) {
 	Node *Nod = relational(&Tok, Tok);
 
 	while(true) {
+		Token *Start = Tok;
 		if(equal(Tok, "==")) {
-			Nod = newBinary(ND_EQ, Nod, relational(&Tok, Tok->Next));
+			Nod = newBinary(ND_EQ, Nod, relational(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "!=")) {
-			Nod = newBinary(ND_NEQ, Nod, relational(&Tok, Tok->Next));
+			Nod = newBinary(ND_NEQ, Nod, relational(&Tok, Tok->Next), Start);
 			continue;
 		}
 
@@ -253,24 +258,25 @@ static Node *relational(Token **Rest, Token *Tok) {
 	Node *Nod = add(&Tok, Tok);
 
 	while(true) {
+		Token *Start = Tok;
 		if(equal(Tok, "<")) {
-			Nod = newBinary(ND_LT, Nod, add(&Tok, Tok->Next));
+			Nod = newBinary(ND_LT, Nod, add(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "<=")) {
-			Nod = newBinary(ND_LTEQ, Nod, add(&Tok, Tok->Next));
+			Nod = newBinary(ND_LTEQ, Nod, add(&Tok, Tok->Next), Start);
 			continue;
 		}
 		// X > Y 相当于 Y < X
 		// >= 同
 		if(equal(Tok, ">")) {
-			Nod = newBinary(ND_LT, add(&Tok, Tok->Next), Nod);
+			Nod = newBinary(ND_LT, add(&Tok, Tok->Next), Nod, Start);
 			continue;
 		}
 
 		if(equal(Tok, ">=")) {
-			Nod = newBinary(ND_LTEQ, add(&Tok, Tok->Next), Nod);
+			Nod = newBinary(ND_LTEQ, add(&Tok, Tok->Next), Nod, Start);
 			continue;
 		}
 
@@ -283,13 +289,14 @@ static Node *add(Token **Rest, Token *Tok) {
 	Node *Nod = mul(&Tok, Tok);
 
 	while(true) {
+		Token *Start = Tok;
 		if(equal(Tok, "+")) {
-			Nod = newBinary(ND_ADD, Nod, mul(&Tok, Tok->Next));
+			Nod = newBinary(ND_ADD, Nod, mul(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "-")) {
-			Nod = newBinary(ND_SUB, Nod, mul(&Tok, Tok->Next));
+			Nod = newBinary(ND_SUB, Nod, mul(&Tok, Tok->Next), Start);
 			continue;
 		}
 
@@ -303,13 +310,14 @@ static Node *mul(Token **Rest, Token *Tok) {
 	Node *Nod = unary(&Tok, Tok);
 
 	while(true) {
+		Token *Start = Tok;
 		if(equal(Tok, "*")) {
-			Nod = newBinary(ND_MUL, Nod, unary(&Tok, Tok->Next));
+			Nod = newBinary(ND_MUL, Nod, unary(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "/")) {
-			Nod = newBinary(ND_DIV, Nod, unary(&Tok, Tok->Next));
+			Nod = newBinary(ND_DIV, Nod, unary(&Tok, Tok->Next), Start);
 			continue;
 		}
 
@@ -327,7 +335,7 @@ static Node *unary(Token **Rest, Token *Tok) {
 
 	// 对于负号，我们仅将数字后面的第一个负号看作减号，之后如果还有负号则看作一元负号
 	if(equal(Tok, "-")) {
-		return newUnary(ND_NEG, unary(Rest, Tok->Next));
+		return newUnary(ND_NEG, unary(Rest, Tok->Next), Tok);
 	}
 
 	return primary(Rest, Tok);
@@ -351,12 +359,12 @@ static Node *primary(Token **Rest, Token *Tok) {
 			Var = newLVar(strndup(Tok->Loc, Tok->Len));
 		}
 		*Rest = Tok->Next;
-		return newVarNode(Var);
+		return newVarNode(Var, Tok);
 	}
 
 	// 如果是数字
 	if(Tok->Kind == TK_NUM) {
-		Node *Nod = newNum(Tok->Val);
+		Node *Nod = newNum(Tok->Val, Tok);
 		*Rest = Tok->Next;
 		return Nod;
 	}

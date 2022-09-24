@@ -52,26 +52,6 @@ struct Function {
 	int StackSize;		// 栈大小
 };
 
-struct Node {
-	NodeKind Kind;		// 节点种类
-	Node *Next;				// 指向下一节点，表示下一语句
-	Node *LHS;				// 左子树
-	Node *RHS;				// 右子树
-
-	// if 语句 或 for 语句
-	Node *Cond;				// 条件
-	Node *Then;				// 符合条件的代码体
-	Node *Else;				// 不符合条件的代码体
-	Node *Init;				// for循环的初始化语句 
-	Node *Inc;				// for循环的递增语句
-
-	// 代码块
-	Node *Body;
-
-	Obj *Var;					// 存储ND_VAR的变量
-	int Val;					// 存储ND_NUM种类的值
-};
-
 // 词法分析的终结符类型
 typedef enum {
   TK_IDENT,			// 标记符，可以为变量名、函数名等
@@ -89,6 +69,28 @@ struct Token {
   int Val;        // 值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
+};
+
+struct Node {
+	NodeKind Kind;		// 节点种类
+	Node *Next;				// 指向下一节点，表示下一语句
+	Token *Tok;				// 节点对应的终结符
+
+	Node *LHS;				// 左子树
+	Node *RHS;				// 右子树
+
+	// if 语句 或 for 语句
+	Node *Cond;				// 条件
+	Node *Then;				// 符合条件的代码体
+	Node *Else;				// 不符合条件的代码体
+	Node *Init;				// for循环的初始化语句 
+	Node *Inc;				// for循环的递增语句
+
+	// 代码块
+	Node *Body;
+
+	Obj *Var;					// 存储ND_VAR的变量
+	int Val;					// 存储ND_NUM种类的值
 };
 
 // 报错函数
