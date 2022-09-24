@@ -26,7 +26,7 @@ typedef enum {
 	ND_NUM,
 	ND_ASSIGN,		// 赋值
 	ND_IF,				// IF语句
-	ND_FOR,				// FOR语句
+	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
 	ND_BLOCK,			// { ... } 代码块
 	ND_VAR,				// 变量

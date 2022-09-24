@@ -98,7 +98,7 @@ static int readPunct(char *P) {
 }
 
 static bool isKeyword(Token *T) {
-	static char *Keywords[] = {"return", "if", "else", "for"};	
+	static char *Keywords[] = {"return", "if", "else", "for", "while"};	
 
 	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {
 		if(equal(T, Keywords[i])) {

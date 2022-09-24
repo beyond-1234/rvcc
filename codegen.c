@@ -168,8 +168,12 @@ static void genStmt(Node *Nod) {
 			// 使用{}包裹，这样C的生命周期仅存在于这个case内
 			// 代码段计数
 			int C = count();
+
 			// 生成初始化语句
-			genStmt(Nod->Init);
+			// 此处加判断是为了兼while循环
+			if (Nod->Init) {
+				genStmt(Nod->Init);
+			}
 			// 生成循环头部标签
 			printf(".L.begin.%d:\n", C);
 			// 生成循环条件语句

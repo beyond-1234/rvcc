@@ -11,6 +11,7 @@ Obj *Locals;
 // stmt = return语句返回;隔开的expr表达式 或
 //			if ( 表达式expr ) stmt else stmt 或
 //			for ( exprStmt expr?; expr? ) stmt
+//			while ( expr ) stmt
 //			{ 代码块语句(compoundStmt) 或
 //			exprStmt(表达式语句) 后续会支持其他类型的语句
 // exprStmt = 分号隔开的expr 或空语句;
@@ -163,6 +164,24 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		Tok = skip(Tok, ")");
 
 		// for 循环代码块
+		Nod->Then = stmt(Rest, Tok);
+
+		return Nod;
+	}
+
+	// 解析while语句
+	if (equal(Tok, "while")) {
+		Node *Nod = newNode(ND_FOR);
+
+		Tok = skip(Tok->Next, "(");
+
+		// while 的条件语句
+		if (!equal(Tok, ")")) {
+			Nod->Cond = expr(&Tok, Tok);
+		}
+		Tok = skip(Tok, ")");
+
+		// while 循环代码块
 		Nod->Then = stmt(Rest, Tok);
 
 		return Nod;
