@@ -21,7 +21,7 @@ Obj *Locals;
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
-// unary = 一元运算符与基数(primary)
+// unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
 // primary = 括号内的算式(expr)或数字(num)或标识符(ident)
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
@@ -336,6 +336,16 @@ static Node *unary(Token **Rest, Token *Tok) {
 	// 对于负号，我们仅将数字后面的第一个负号看作减号，之后如果还有负号则看作一元负号
 	if(equal(Tok, "-")) {
 		return newUnary(ND_NEG, unary(Rest, Tok->Next), Tok);
+	}
+
+	// 取地址
+	if(equal(Tok, "&")) {
+		return newUnary(ND_ADDR, unary(Rest, Tok->Next), Tok);
+	}
+
+	// 解引用
+	if(equal(Tok, "*")) {
+		return newUnary(ND_DEREF, unary(Rest, Tok->Next), Tok);
 	}
 
 	return primary(Rest, Tok);

@@ -1,6 +1,8 @@
 #include "rvcc.h"
 #include <stdio.h>
 
+static void genExpr(Node *Nod);
+
 // 记录栈的深度
 static int Depth;
 
@@ -62,6 +64,12 @@ static void genAddr(Node *Nod) {
 		return;
 	}
 
+	// 解引用
+	if(Nod->Kind == ND_DEREF) {
+		genExpr(Nod->LHS);
+		return;
+	}
+
 	errorTok(Nod->Tok, "not an lvalue");
 }
 
@@ -92,6 +100,16 @@ static void genExpr(Node *Nod) {
 			// 当前变量写死为8字节，所以用ld
 			printf("  # 读取a0中存放的地址，得到的值存入a0\n");
 			printf("  ld a0, 0(a0)\n");
+			return;
+		// 解引用
+		case ND_DEREF:
+			genExpr(Nod->LHS);
+			printf("  # 读取a0中存放的地址，得到的值存入a0\n");
+			printf("  ld a0, 0(a0)\n");
+			return;
+		// 取地址
+		case ND_ADDR:
+			genAddr(Nod->LHS);
 			return;
 		case ND_ASSIGN:
 			// 左部是左值，保存值到的地址

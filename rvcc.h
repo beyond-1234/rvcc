@@ -25,6 +25,8 @@ typedef enum {
 	ND_NEQ,
 	ND_NUM,
 	ND_ASSIGN,		// 赋值
+	ND_ADDR,			// 取地址 &
+	ND_DEREF,			// 解引用 *
 	ND_IF,				// IF语句
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
