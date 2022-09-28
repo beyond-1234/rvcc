@@ -35,6 +35,7 @@ typedef enum {
 	ND_EXPR_STMT	// 表达式语句
 } NodeKind;
 
+typedef struct Type Type;
 // 语法树二叉树节点
 typedef struct Node Node;
 
@@ -77,6 +78,7 @@ struct Node {
 	NodeKind Kind;		// 节点种类
 	Node *Next;				// 指向下一节点，表示下一语句
 	Token *Tok;				// 节点对应的终结符
+	Type *Ty;					// 节点中数据的类型
 
 	Node *LHS;				// 左子树
 	Node *RHS;				// 右子树
@@ -94,6 +96,21 @@ struct Node {
 	Obj *Var;					// 存储ND_VAR的变量
 	int Val;					// 存储ND_NUM种类的值
 };
+
+typedef enum {
+	TY_INT,		// int 整型
+	TY_PTR,		// 指针
+} TypeKind;
+
+struct Type {
+	TypeKind Kind;		// 种类
+	Type *Base;				// 指向的类型
+};
+
+extern Type *TyInt;
+
+bool isInteger(Type *TY);
+void addType(Node *Nod);
 
 // 报错函数
 void error(char *Fmt, ...);

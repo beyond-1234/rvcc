@@ -94,6 +94,65 @@ static Node *newBinary(NodeKind Kind, Node *LHS, Node *RHS, Token *Tok) {
 	return Nod;
 }
 
+// 解析各种加法
+static Node *newAdd(Node *LHS, Node *RHS, Token *Tok) {
+	// 为左右部添加类型
+	addType(LHS);
+	addType(RHS);
+
+	// num + num
+	if (isInteger(LHS->Ty) && isInteger(RHS->Ty))  {
+		return newBinary(ND_ADD, LHS, RHS, Tok);
+	}
+
+	// 不能解析 ptr + ptr
+	if (LHS->Ty->Base && RHS->Ty->Base)  {
+		errorTok(Tok, "invalid operands");
+	}
+
+	// num + ptr 转换为 ptr + num
+	if (!LHS->Ty->Base && RHS->Ty->Base) {
+		Node *Tmp = LHS;
+		LHS = RHS;
+		RHS = Tmp;
+	}
+
+	// ptr + num
+	// 指针加法 ptr+1 指的是+一个元素的空间
+	// 所以需要一个 *8 的操作即 *一个元素大小 的操作
+	RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
+	return newBinary(ND_ADD, LHS, RHS, Tok);
+}
+
+// 解析各种减法
+static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
+	// 为左右部添加类型
+	addType(LHS);
+	addType(RHS);
+
+	// num - num
+	if (isInteger(LHS->Ty) && isInteger(RHS->Ty))  {
+		return newBinary(ND_SUB, LHS, RHS, Tok);
+	}
+
+	// 不能解析 ptr - ptr
+	if (LHS->Ty->Base && RHS->Ty->Base)  {
+		errorTok(Tok, "invalid operands");
+	}
+
+	// num - ptr 转换为 ptr - num
+	if (!LHS->Ty->Base && RHS->Ty->Base) {
+		Node *Tmp = LHS;
+		LHS = RHS;
+		RHS = Tmp;
+	}
+
+	// ptr - num
+	// 指针加法 ptr+1 指的是+一个元素的空间
+	RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
+	return newBinary(ND_SUB, LHS, RHS, Tok);
+}
+
 // 解析复合语句(代码块)
 // compoundStmt = stmt* }
 static Node *compoundStmt(Token **Rest, Token *Tok) {
@@ -109,6 +168,9 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
     Cur->Next = stmt(&Tok, Tok);
 		// 处理下个表达式语句
     Cur = Cur->Next;
+
+		// 构造完语法树后为节点添加类型信息
+		addType(Cur);
   }
 	
 	// Nod的Body中存储了{}内解析的语句
@@ -291,12 +353,12 @@ static Node *add(Token **Rest, Token *Tok) {
 	while(true) {
 		Token *Start = Tok;
 		if(equal(Tok, "+")) {
-			Nod = newBinary(ND_ADD, Nod, mul(&Tok, Tok->Next), Start);
+			Nod = newAdd(Nod, mul(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "-")) {
-			Nod = newBinary(ND_SUB, Nod, mul(&Tok, Tok->Next), Start);
+			Nod = newSub(Nod, mul(&Tok, Tok->Next), Start);
 			continue;
 		}
 
