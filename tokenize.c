@@ -64,6 +64,17 @@ Token *skip(Token *Tok, char *Str) {
   return Tok->Next;
 }
 
+// 消耗指定的Str
+bool consume(Token **Rest, Token *Tok, char *Str) {
+  if (equal(Tok, Str)) {
+		*Rest = Tok->Next;
+		return true;
+	}
+
+	*Rest = Tok;
+  return false;
+}
+
 // 返回TK_NUM的值
 static int getNumber(Token *Tok) {
   if (Tok->Kind != TK_NUM) {
@@ -98,7 +109,7 @@ static int readPunct(char *P) {
 }
 
 static bool isKeyword(Token *T) {
-	static char *Keywords[] = {"return", "if", "else", "for", "while"};	
+	static char *Keywords[] = {"return", "if", "else", "for", "while", "int"};	
 
 	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {
 		if(equal(T, Keywords[i])) {

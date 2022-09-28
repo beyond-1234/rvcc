@@ -7,7 +7,11 @@ Obj *Locals;
 // 语法树规则
 // 越往下优先级越高
 // program = { 多个代码块语句(compoundStmt)
-// compoundStmt = stmt* }
+// compoundStmt = (declaration | stmt)* "}"
+// declaration =
+//    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+// declspec = "int"
+// declarator = "*"* ident
 // stmt = return语句返回;隔开的expr表达式 或
 //			if ( 表达式expr ) stmt else stmt 或
 //			for ( exprStmt expr?; expr? ) stmt
@@ -24,6 +28,7 @@ Obj *Locals;
 // unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
 // primary = 括号内的算式(expr)或数字(num)或标识符(ident)
 static Node *compoundStmt(Token **Rest, Token *Tok);
+static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
@@ -40,7 +45,8 @@ static Obj *findVar(Token *Tok) {
 	// 查找Locals变量中是否存在同名变量
 	for (Obj *Var = Locals; Var; Var = Var->Next) {
 		// 判断变量名是否和终结符名长度一直，然后逐字比较
-		if(strlen(Var->Name) == Tok->Len && !strncmp(Tok->Loc, Var->Name, Tok->Len)) {
+		if(strlen(Var->Name) == Tok->Len &&
+				!strncmp(Tok->Loc, Var->Name, Tok->Len)) {
 			return Var;
 		}
 	}
@@ -56,13 +62,22 @@ static Node *newNode(NodeKind Kind, Token *Tok) {
 }
 
 // 在链表中新建一个变量
-static Obj *newLVar(char *Name) {
+static Obj *newLVar(char *Name, Type *Ty) {
 	Obj *Var = calloc(1, sizeof(Obj));
 	Var->Name = Name;
+	Var->Ty = Ty;
 	// 将变量插入头部
 	Var->Next = Locals;
 	Locals = Var;
 	return Var;
+}
+
+// 获取标识符
+static char *getIdent(Token *Tok) {
+	if (Tok->Kind != TK_IDENT) {
+		errorTok(Tok, "expected an identifier");
+	}
+	return strndup(Tok->Loc, Tok->Len);
 }
 
 // 新建一个数字二叉树叶子
@@ -135,22 +150,25 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
 		return newBinary(ND_SUB, LHS, RHS, Tok);
 	}
 
-	// 不能解析 ptr - ptr
-	if (LHS->Ty->Base && RHS->Ty->Base)  {
-		errorTok(Tok, "invalid operands");
-	}
-
-	// num - ptr 转换为 ptr - num
-	if (!LHS->Ty->Base && RHS->Ty->Base) {
-		Node *Tmp = LHS;
-		LHS = RHS;
-		RHS = Tmp;
-	}
-
 	// ptr - num
-	// 指针加法 ptr+1 指的是+一个元素的空间
-	RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
-	return newBinary(ND_SUB, LHS, RHS, Tok);
+  if (LHS->Ty->Base && isInteger(RHS->Ty)) {
+    RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
+    addType(RHS);
+    Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
+    // 节点类型为指针
+    Nd->Ty = LHS->Ty;
+    return Nd;
+  }
+
+  // ptr - ptr，返回两指针间有多少元素
+  if (LHS->Ty->Base && RHS->Ty->Base) {
+    Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
+    Nd->Ty = TyInt;
+    return newBinary(ND_DIV, Nd, newNum(8, Tok), Tok);
+  }
+
+  errorTok(Tok, "invalid operands");
+  return NULL;
 }
 
 // 解析复合语句(代码块)
@@ -162,10 +180,16 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	// 来表示多个表达式语句
   Node Head = {};
   Node *Cur = &Head;
-  // stmt* }
+  // (declaration | stmt)* "}"
+	// 匹配声明 或
 	// 匹配最近的}来结束{代码块，用于支持{}嵌套
   while (!equal(Tok, "}")) {
-    Cur->Next = stmt(&Tok, Tok);
+		// declaration
+		if (equal(Tok, "int")) {
+			Cur->Next = declaration(&Tok, Tok);
+		}else {
+			Cur->Next = stmt(&Tok, Tok);
+		}
 		// 处理下个表达式语句
     Cur = Cur->Next;
 
@@ -179,6 +203,69 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	Nod->Body = Head.Next;
 	*Rest = Tok->Next;
 	return Nod;
+}
+
+static Type *declspec(Token **Rest, Token *Tok) {
+	*Rest = skip(Tok, "int");
+	return TyInt;
+}
+
+static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
+	// 构建所有的(多重)指针
+	while(consume(&Tok, Tok, "*")) {
+		Ty = pointerTo(Ty);
+	}
+
+	if(Tok->Kind != TK_IDENT) {
+		errorTok(Tok, "expected a variable name");
+	}
+
+	// ident
+	// 变量名
+	Ty->Name = Tok;
+	*Rest = Tok->Next;
+	return Ty;
+}
+static Node *declaration(Token **Rest, Token *Tok) {
+  // declspec
+  // 声明的 基础类型
+  Type *Basety = declspec(&Tok, Tok);
+
+  Node Head = {};
+  Node *Cur = &Head;
+  // 对变量声明次数计数
+  int I = 0;
+
+  // (declarator ("=" expr)? ("," declarator ("=" expr)?)*)?
+  while (!equal(Tok, ";")) {
+    // 第1个变量不必匹配 ","
+    if (I++ > 0)
+      Tok = skip(Tok, ",");
+
+    // declarator
+    // 声明获取到变量类型，包括变量名
+    Type *Ty = declarator(&Tok, Tok, Basety);
+    Obj *Var = newLVar(getIdent(Ty->Name), Ty);
+
+    // 如果不存在"="则为变量声明，不需要生成节点，已经存储在Locals中了
+    if (!equal(Tok, "="))
+      continue;
+
+    // 解析“=”后面的Token
+    Node *LHS = newVarNode(Var, Ty->Name);
+    // 解析递归赋值语句
+    Node *RHS = assign(&Tok, Tok->Next);
+    Node *Node = newBinary(ND_ASSIGN, LHS, RHS, Tok);
+    // 存放在表达式语句中
+    Cur->Next = newUnary(ND_EXPR_STMT, Node, Tok);
+    Cur = Cur->Next;
+  }
+
+  // 将所有表达式语句，存放在代码块中
+  Node *Nd = newNode(ND_BLOCK, Tok);
+  Nd->Body = Head.Next;
+  *Rest = Tok->Next;
+  return Nd;
 }
 
 static Node *stmt(Token **Rest, Token *Tok) {
@@ -427,8 +514,7 @@ static Node *primary(Token **Rest, Token *Tok) {
 		Obj *Var = findVar(Tok);
 		// 如果变量不存在，就在链表中新增一个变量
 		if(!Var) {
-			// strndup复制N个字符
-			Var = newLVar(strndup(Tok->Loc, Tok->Len));
+			errorTok(Tok, "undefined variable");
 		}
 		*Rest = Tok->Next;
 		return newVarNode(Var, Tok);

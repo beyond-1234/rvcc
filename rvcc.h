@@ -44,6 +44,7 @@ typedef struct Obj Obj;
 struct Obj {
 	Obj *Next;		// 指向下一对象
 	char *Name;		// 变量名
+	Type *Ty;			// 变量的类型
 	int Offset;		// fp的偏移量
 };
 
@@ -105,12 +106,14 @@ typedef enum {
 struct Type {
 	TypeKind Kind;		// 种类
 	Type *Base;				// 指向的类型
+	Token *Name;			// 变量名
 };
 
 extern Type *TyInt;
 
 bool isInteger(Type *TY);
 void addType(Node *Nod);
+Type *pointerTo(Type *Base);
 
 // 报错函数
 void error(char *Fmt, ...);
@@ -120,6 +123,7 @@ void errorTok(Token *Tok, char *Fmt, ...);
 // 判断token与str关系的函数
 bool equal(Token *Tok, char *Str);
 Token *skip(Token *Tok, char *Str);
+bool consume(Token **Rest, Token *Tok, char *Str);
 
 // 词法分析函数
 Token *tokenize(char *Input);
