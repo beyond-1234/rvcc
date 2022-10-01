@@ -6,12 +6,14 @@ Obj *Locals;
 // 方法前置声明 
 // 语法树规则
 // 越往下优先级越高
-// program = { 多个代码块语句(compoundStmt)
+// program = functionDefinition*
+// functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
+// declspec = "int"
+// declarator = "*"* ident typeSuffix
+// typeSuffix = ("(" ")")?
 // compoundStmt = (declaration | stmt)* "}"
 // declaration =
 //    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-// declspec = "int"
-// declarator = "*"* ident
 // stmt = return语句返回;隔开的expr表达式 或
 //			if ( 表达式expr ) stmt else stmt 或
 //			for ( exprStmt expr?; expr? ) stmt
@@ -28,8 +30,10 @@ Obj *Locals;
 // unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
 // primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(funcall)
 // funcall = ident ( assign , assign, * ) )
-static Node *compoundStmt(Token **Rest, Token *Tok);
+static Type *declspec(Token **Rest, Token *Tok);
+static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
 static Node *declaration(Token **Rest, Token *Tok);
+static Node *compoundStmt(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
@@ -211,6 +215,15 @@ static Type *declspec(Token **Rest, Token *Tok) {
 	return TyInt;
 }
 
+static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
+	if (equal(Tok, "(")) {
+		*Rest = skip(Tok->Next, ")");
+		return funcType(Ty);
+	}
+	*Rest = Tok;
+	return Ty;
+}
+
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 	// 构建所有的(多重)指针
 	while(consume(&Tok, Tok, "*")) {
@@ -221,10 +234,11 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 		errorTok(Tok, "expected a variable name");
 	}
 
+	// typeSuffix
+	Ty = typeSuffix(Rest, Tok->Next, Ty);
 	// ident
-	// 变量名
+	// 变量名 或 函数名
 	Ty->Name = Tok;
-	*Rest = Tok->Next;
 	return Ty;
 }
 static Node *declaration(Token **Rest, Token *Tok) {
@@ -562,14 +576,29 @@ static Node *primary(Token **Rest, Token *Tok) {
 	return NULL;
 }
 
+static Function *function(Token **Rest, Token *Tok) {
+	Type *Ty = declspec(&Tok, Tok);
+	Ty = declarator(&Tok, Tok, Ty);
+
+  // 清空全局变量Locals
+	Locals = NULL;
+
+  // 从解析完成的Ty中读取ident
+	Function *Fn = calloc(1, sizeof(Function));
+	Fn->Name = getIdent(Ty->Name);
+
+	Tok = skip(Tok, "{");
+	Fn->Body = compoundStmt(Rest, Tok);
+	Fn->Locals = Locals;
+	return Fn;
+}
+
 // 语法分析入口函数
 Function *parse(Token *Tok){
-	// 首先匹配{
-	Tok = skip(Tok, "{");
+	Function Head = {};
+  Function *Cur = &Head;
 
-	Function *Prog = calloc(1, sizeof(Function));
-	Prog->Body = compoundStmt(&Tok, Tok);
-	Prog->Locals = Locals;
-
-  return Prog;
+  while (Tok->Kind != TK_EOF)
+    Cur = Cur->Next = function(&Tok, Tok);
+  return Head.Next;
 }

@@ -52,6 +52,8 @@ struct Obj {
 // 函数
 typedef  struct Function Function;
 struct Function {
+	Function *Next;		// 下一函数
+	char *Name;				// 函数名
 	Node *Body;				// 函数体
 	Obj *Locals;			// 本地变量
 	int StackSize;		// 栈大小
@@ -105,12 +107,14 @@ struct Node {
 typedef enum {
 	TY_INT,		// int 整型
 	TY_PTR,		// 指针
+	TY_FUNC		// 函数
 } TypeKind;
 
 struct Type {
 	TypeKind Kind;		// 种类
 	Type *Base;				// 指向的类型
 	Token *Name;			// 变量名
+	Type *ReturnTy;		// 函数返回的类型
 };
 
 extern Type *TyInt;
@@ -118,6 +122,7 @@ extern Type *TyInt;
 bool isInteger(Type *TY);
 void addType(Node *Nod);
 Type *pointerTo(Type *Base);
+Type *funcType(Type *ReturnTy);
 
 // 报错函数
 void error(char *Fmt, ...);
