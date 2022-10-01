@@ -368,6 +368,14 @@ void codegen(Function *Prog) {
 		printf("  # sp腾出StackSize大小的栈空间\n");
 		printf("  addi sp, sp, -%d\n", Fn->StackSize);
 
+		// 由于方法参数与a0,a1...寄存器自动对应
+		// 所以我们要将形参跟寄存器对应起来
+		int I = 0;
+		for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
+			printf("  # 将%s寄存器的值存入%s的栈地址\n", ArgReg[1], Var->Name);
+			printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+		}
+
 		printf("\n# =====%s段主体===============\n", Fn->Name);
 		genStmt(Fn->Body);
 		assert(Depth == 0);

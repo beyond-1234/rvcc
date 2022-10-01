@@ -10,7 +10,9 @@ Obj *Locals;
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
 // declspec = "int"
 // declarator = "*"* ident typeSuffix
-// typeSuffix = ("(" ")")?
+// typeSuffix = ("(" funcParams? ")")?
+// funcParams = param ("," param)*
+// param = declspec declarator
 // compoundStmt = (declaration | stmt)* "}"
 // declaration =
 //    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
@@ -216,10 +218,33 @@ static Type *declspec(Token **Rest, Token *Tok) {
 }
 
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
+
 	if (equal(Tok, "(")) {
-		*Rest = skip(Tok->Next, ")");
-		return funcType(Ty);
+		Tok = Tok->Next;
+
+		// 存储形参的链表
+		Type Head = {};
+		Type *Cur = &Head;
+
+		while (!equal(Tok, ")")) {
+			if (Cur != &Head) {
+				Tok = skip(Tok, ",");
+			}
+
+			Type *Basety = declspec(&Tok, Tok);
+			Type *DeclarTy = declarator(&Tok, Tok, Basety);
+			// 将类型复制到形参链表一份
+			Cur->Next = copyType(DeclarTy);
+			Cur = Cur->Next;
+		}
+
+		Ty = funcType(Ty);
+		// 传递形参
+		Ty->Params = Head.Next;
+		*Rest = Tok->Next;
+		return Ty;
 	}
+
 	*Rest = Tok;
 	return Ty;
 }
@@ -576,6 +601,17 @@ static Node *primary(Token **Rest, Token *Tok) {
 	return NULL;
 }
 
+// 将形参添加到Locals
+static void createParamLVars(Type *Param) {
+	if (Param) {
+		// 递归到形参最底部
+		// 先将最低部的加入Locals中之后的逐个加入到顶部，保持顺序不变
+		createParamLVars(Param->Next);
+		// 添加到Locals中
+		newLVar(getIdent(Param->Name), Param);
+	}
+}
+
 static Function *function(Token **Rest, Token *Tok) {
 	Type *Ty = declspec(&Tok, Tok);
 	Ty = declarator(&Tok, Tok, Ty);
@@ -585,7 +621,11 @@ static Function *function(Token **Rest, Token *Tok) {
 
   // 从解析完成的Ty中读取ident
 	Function *Fn = calloc(1, sizeof(Function));
+	// 函数名
 	Fn->Name = getIdent(Ty->Name);
+	// 函数参数
+	createParamLVars(Ty->Params);
+	Fn->Params = Locals;
 
 	Tok = skip(Tok, "{");
 	Fn->Body = compoundStmt(Rest, Tok);
