@@ -26,8 +26,8 @@ Obj *Locals;
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
 // unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
-// primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(args)
-// args = ( )
+// primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(funcall)
+// funcall = ident ( assign , assign, * ) )
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
@@ -501,6 +501,30 @@ static Node *unary(Token **Rest, Token *Tok) {
 	return primary(Rest, Tok);
 }
 
+static Node *funCall(Token **Rest, Token *Tok) {
+	Token *Start = Tok;
+	Tok = Tok->Next->Next;
+
+	Node Head = {};
+	Node *Cur = &Head;
+
+	while (!equal(Tok, ")")) {
+		if (Cur != &Head) {
+			Tok = skip(Tok, ",");
+		}
+
+		Cur->Next = assign(&Tok, Tok);
+		Cur = Cur->Next;
+	}
+
+	*Rest = skip(Tok, ")");
+
+	Node *Nod = newNode(ND_FUNCALL, Start);
+	Nod->FuncName = strndup(Start->Loc, Start->Len);
+	Nod->Args = Head.Next;
+	return Nod;
+}
+
 static Node *primary(Token **Rest, Token *Tok) {
 
 	// 如果是(expr)
@@ -514,11 +538,7 @@ static Node *primary(Token **Rest, Token *Tok) {
 	if(Tok->Kind == TK_IDENT) {
 		// 如果是零参数函数
 		if (equal(Tok->Next, "(")) {
-			Node *Nod = newNode(ND_FUNCALL, Tok);
-			// ident
-			Nod->FuncName = strndup(Tok->Loc, Tok->Len);
-			*Rest = skip(Tok->Next->Next, ")");
-			return Nod;
+			return funCall(Rest, Tok);
 		}
 
 

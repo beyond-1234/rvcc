@@ -1,10 +1,15 @@
 !/bin/bash
 
-# 将下列代码编译为tmp2.o 
-# 强制以c语言进行编译
-cat <<EOF | clang -xc -c -o tmp2.o -
+# 将下列代码编译为tmp2.o，"-xc"强制以c语言进行编译
+# cat <<EOF | clang -xc -c -o tmp2.o -
+cat <<EOF | ~/riscv/bin/riscv64-unknown-linux-gnu-gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }
 int ret5() { return 5; }
+int add(int x, int y) { return x+y; }
+int sub(int x, int y) { return x-y; }
+int add6(int a, int b, int c, int d, int e, int f) {
+  return a+b+c+d+e+f;
+}
 EOF
 
 assert() {
@@ -133,7 +138,15 @@ assert 8 '{ int x=3, y=5; return x+y; }'
 # [23] 支持零参函数调用
 assert 3 '{ return ret3(); }'
 assert 5 '{ return ret5(); }'
-assert 8 '{ return ret3() + ret5(); }'
+assert 8 '{ return ret3()+ret5(); }'
+
+# [24] 支持最多6个参数的函数调用
+assert 8 '{ return add(3, 5); }'
+assert 2 '{ return sub(5, 3); }'
+assert 21 '{ return add6(1,2,3,4,5,6); }'
+assert 66 '{ return add6(1,2,add6(3,4,5,6,7,8),9,10,11); }'
+assert 136 '{ return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }'
+
 
 # 如果运行正常未提前退出，程序将显示OK
 echo OK
