@@ -52,6 +52,7 @@ void addType(Node *Nd) {
   case ND_LT:
   case ND_LTEQ:
   case ND_NUM:
+  case ND_FUNCALL: // 暂且将函数类型设置为整形
     Nd->Ty = TyInt;
     return;
   // 将节点类型设为 变量的类型

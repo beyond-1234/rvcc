@@ -31,6 +31,7 @@ typedef enum {
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
 	ND_BLOCK,			// { ... } 代码块
+	ND_FUNCALL,		// 函数调用
 	ND_VAR,				// 变量
 	ND_EXPR_STMT	// 表达式语句
 } NodeKind;
@@ -93,6 +94,8 @@ struct Node {
 
 	// 代码块
 	Node *Body;
+
+	char *FuncName;		// 函数名
 
 	Obj *Var;					// 存储ND_VAR的变量
 	int Val;					// 存储ND_NUM种类的值

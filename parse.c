@@ -26,7 +26,8 @@ Obj *Locals;
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
 // unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
-// primary = 括号内的算式(expr)或数字(num)或标识符(ident)
+// primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(args)
+// args = ( )
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
@@ -511,6 +512,16 @@ static Node *primary(Token **Rest, Token *Tok) {
 
 	// 如果是变量
 	if(Tok->Kind == TK_IDENT) {
+		// 如果是零参数函数
+		if (equal(Tok->Next, "(")) {
+			Node *Nod = newNode(ND_FUNCALL, Tok);
+			// ident
+			Nod->FuncName = strndup(Tok->Loc, Tok->Len);
+			*Rest = skip(Tok->Next->Next, ")");
+			return Nod;
+		}
+
+
 		Obj *Var = findVar(Tok);
 		// 如果变量不存在，就在链表中新增一个变量
 		if(!Var) {

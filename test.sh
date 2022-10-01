@@ -1,4 +1,11 @@
-#!/bin/bash
+!/bin/bash
+
+# 将下列代码编译为tmp2.o 
+# 强制以c语言进行编译
+cat <<EOF | clang -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
 
 assert() {
 	expected="$1"
@@ -9,7 +16,7 @@ assert() {
 	# $input 必须带双引号才能防止单个空格被rvcc识别成参数
 	./rvcc "$input" > tmp.s || exit
 	# 编译rvcc产生的汇编文件
-	~/riscv/bin/riscv64-unknown-linux-gnu-gcc -static -o tmp tmp.s
+	~/riscv/bin/riscv64-unknown-linux-gnu-gcc -static -o tmp tmp.s tmp2.o
 
 	# 运行生成的目标文件
 	~/riscv/bin/qemu-riscv64 -L $RISCV/sysroot ./tmp
@@ -24,7 +31,6 @@ assert() {
 		exit 1
 	fi
 }
-
 
 # assert 期待值 输入值
 # [1] 返回指定数值
@@ -123,6 +129,11 @@ assert 7 '{ int x=3; int y=5; *(&x+1)=7; return y; }'
 # [22] 支持int关键字
 assert 8 '{ int x, y; x=3; y=5; return x+y; }'
 assert 8 '{ int x=3, y=5; return x+y; }'
+
+# [23] 支持零参函数调用
+assert 3 '{ return ret3(); }'
+assert 5 '{ return ret5(); }'
+assert 8 '{ return ret3() + ret5(); }'
 
 # 如果运行正常未提前退出，程序将显示OK
 echo OK

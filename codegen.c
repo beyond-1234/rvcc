@@ -73,6 +73,7 @@ static void genAddr(Node *Nod) {
 	errorTok(Nod->Tok, "not an lvalue");
 }
 
+// 对AST二叉树进行中序遍历处理
 static void genExpr(Node *Nod) {
   // 这里我们将算式分解为 num (op num) (op num)...的形式
   // 所以先将第一个num传入a0
@@ -118,17 +119,21 @@ static void genExpr(Node *Nod) {
 			// 右部是右值，为表达式的值
 			genExpr(Nod->RHS);
 			pop("a1");
-			// 当前变量写死为8位，所以用sd
+			// 当前变量写死为8字节，所以用sd
 			printf(" # 将a0的值，写入到a1中存放的地址\n");
 			printf("  sd a0, 0(a1)\n");
 			return;
+		case ND_FUNCALL:
+			printf("\n  # 调用函数%s\n", Nod->FuncName);
+			printf("  li a0, 0\n");
+			printf("  call %s\n", Nod->FuncName);
 		default:
 			break;
 	}
 
 	// 递归到最右节点
 	genExpr(Nod->RHS);
-	// 将结果压栈
+	// 将a0结果压栈
 	push();
 	// 递归到左节点
 	genExpr(Nod->LHS);
@@ -306,14 +311,20 @@ void codegen(Function *Prog) {
 
   // 栈布局
   //-------------------------------// sp
-  //              fp                  fp = sp-8
-  //-------------------------------// fp
+  //              ra                  
+  //-------------------------------// ra = sp-8
+  //              fp                  
+  //-------------------------------// fp = sp-8
 	//						 变量
   //-------------------------------// sp=sp-8-StackSize
   //           表达式计算
   //-------------------------------//
 	//
 	// Prologue 前言
+	// 将ra寄存器压栈，保存ra的值，ra是保存方法的当前地址的寄存器，当调用其他方法结束时可以返回原来的地址
+	printf("  # 将ra寄存器压栈，保存ra的值\n");
+	printf("  addi sp, sp, -16\n");
+	printf("  sd ra, 8(sp)\n");
 	// 将fp压入栈，保存fp的值
 	printf("  # 将fp压栈，fp属于“被调用者保存”的寄存器，需要恢复原值\n");
 	printf("  addi sp, sp, -8\n");
@@ -342,7 +353,10 @@ void codegen(Function *Prog) {
 	printf("  # 将最早fp保存的值弹栈，恢复fp和sp\n");
 	printf("  ld fp, 0(sp)\n");
 	printf("  addi sp, sp, 8\n");
-	
+	// 将ra保存的值弹栈，恢复ra的值
+	printf("  # 将ra保存的值弹栈，恢复ra的值\n");
+	printf("  ld ra, 8(sp)\n");
+	printf("  addi sp, sp, 16\n");
 
   // ret为jalr x0, x1, 0别名指令，用于返回子程序
   // 返回的为a0的值
