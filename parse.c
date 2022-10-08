@@ -31,7 +31,7 @@ Obj *Locals;
 // mul = 多个基数(primary)相乘除得到的
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(funcall)
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
@@ -604,6 +604,12 @@ static Node *primary(Token **Rest, Token *Tok) {
 		Node *Nod = expr(&Tok, Tok->Next);
 		*Rest = skip(Tok, ")");
 		return Nod;
+	}
+
+	if(equal(Tok, "sizeof")) {
+		Node *Nod = unary(Rest, Tok->Next);
+		addType(Nod);
+		return newNum(Nod->Ty->Size, Tok);
 	}
 
 	// 如果是变量
