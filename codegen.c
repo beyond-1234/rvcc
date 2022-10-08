@@ -36,6 +36,25 @@ static void pop(char *Reg) {
 	Depth--;
 }
 
+// 加载a0指向的值
+static void load(Type *Ty) {
+	if (Ty->Kind == TY_ARRAY) {
+		return;
+	}
+
+	printf("  # 读取a0中存放的地址，得到的值存入a0\n");
+	// 当前变量写死为8字节，所以用ld
+	printf("  ld a0, 0(a0)");
+}
+
+// 将栈顶值(为一个地址)存入a0
+static void store() {
+	pop("a1");
+	printf("  # 读取a0的值，写入到a1存放的地址\n");
+	// 当前变量写死为8字节，所以用sd
+	printf("  sd a0, 0(a1)");
+}
+
 // 对其到Align的整数倍
 // 用于栈的对齐
 static int alignTo(int N, int Align) {
@@ -51,7 +70,7 @@ static void assignLVarOffsets(Function *Prog) {
 		int Offset = 0;
 		for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
 			// 每个变量分配8字节
-			Offset += 8;
+			Offset += Var->Ty->Size;
 			// 为每个变量赋一个编译量，或者说是栈中地址
 			Var->Offset = -Offset;
 		}
@@ -109,14 +128,12 @@ static void genExpr(Node *Nod) {
 			genAddr(Nod);
 			// 访问a0地址中存储的数据，存入a0中
 			// 当前变量写死为8字节，所以用ld
-			printf("  # 读取a0中存放的地址，得到的值存入a0\n");
-			printf("  ld a0, 0(a0)\n");
+			load(Nod->Ty);
 			return;
 		// 解引用
 		case ND_DEREF:
 			genExpr(Nod->LHS);
-			printf("  # 读取a0中存放的地址，得到的值存入a0\n");
-			printf("  ld a0, 0(a0)\n");
+			load(Nod->Ty);
 			return;
 		// 取地址
 		case ND_ADDR:
@@ -128,10 +145,7 @@ static void genExpr(Node *Nod) {
 			push();
 			// 右部是右值，为表达式的值
 			genExpr(Nod->RHS);
-			pop("a1");
-			// 当前变量写死为8字节，所以用sd
-			printf(" # 将a0的值，写入到a1中存放的地址\n");
-			printf("  sd a0, 0(a1)\n");
+			store();
 			return;
 		case ND_FUNCALL: {
 			// 记录参数个数

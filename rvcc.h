@@ -108,13 +108,19 @@ struct Node {
 typedef enum {
 	TY_INT,		// int 整型
 	TY_PTR,		// 指针
-	TY_FUNC		// 函数
+	TY_FUNC,	// 函数
+	TY_ARRAY	// 数组
 } TypeKind;
 
 struct Type {
 	TypeKind Kind;		// 种类
+	int Size;					// 大小，sizeof返回的值
+
 	Type *Base;				// 指向的类型
 	Token *Name;			// 变量名
+
+	// 数组
+	int ArrayLen;			// 数组长度，元素总个数
 
 	Type *ReturnTy;		// 函数返回的类型
 	Type *Params;			// 形参列表
@@ -133,6 +139,7 @@ Type *pointerTo(Type *Base);
 Type *funcType(Type *ReturnTy);
 // 复制类型
 Type *copyType(Type *Ty);
+Type *arrayOf(Type *base, int Size);
 
 // 报错函数
 void error(char *Fmt, ...);
