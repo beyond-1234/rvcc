@@ -29,7 +29,8 @@ Obj *Locals;
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
-// unary =  unary 或 基数(primary) 的 一元运算(+,-,&,*)
+// unary = ("+" | "-" | "*" | "&") unary | postfix
+// postfix = primary ("[" expr "]")*
 // primary = 括号内的算式(expr)或数字(num)或标识符(ident) 或 后面跟着括号则为方法(funcall)
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok);
@@ -45,6 +46,7 @@ static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
+static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
 
 // 通过名称，查找一个本地变量
@@ -553,7 +555,22 @@ static Node *unary(Token **Rest, Token *Tok) {
 		return newUnary(ND_DEREF, unary(Rest, Tok->Next), Tok);
 	}
 
-	return primary(Rest, Tok);
+	return postfix(Rest, Tok);
+}
+
+static Node *postfix(Token **Rest, Token *Tok) {
+	Node *Nod = primary(&Tok, Tok);
+
+	while (equal(Tok, "[")) {
+		// x[y] == *(x+y)
+		Token *Start = Tok;
+		Node *Idx = expr(&Tok, Tok->Next);
+		Tok = skip(Tok, "]");
+		Nod = newUnary(ND_DEREF, newAdd(Nod, Idx, Start), Start);
+	}
+
+	*Rest = Tok;
+	return Nod;
 }
 
 static Node *funCall(Token **Rest, Token *Tok) {
