@@ -40,25 +40,22 @@ typedef struct Type Type;
 // 语法树二叉树节点
 typedef struct Node Node;
 
-// 本地变量
+// 变量 或 函数
 typedef struct Obj Obj;
 struct Obj {
-	Obj *Next;		// 指向下一对象
-	char *Name;		// 变量名
-	Type *Ty;			// 变量的类型
-	int Offset;		// fp的偏移量
+	Obj *Next;				// 指向下一对象
+	char *Name;				// 变量名
+	Type *Ty;					// 变量的类型
+	bool isLocal;			// 是局部变量或全局变量
+	int Offset;				// fp的偏移量
+	bool isFunction;	// 函数或全局变量
+	Obj *Params;			// 函数形参
+
+  Node *Body;    // 函数体
+  Obj *Locals;   // 本地变量
+  int StackSize; // 栈大小
 };
 
-// 函数
-typedef  struct Function Function;
-struct Function {
-	Function *Next;		// 下一函数
-	char *Name;				// 函数名
-	Obj *Params;			// 形参列表
-	Node *Body;				// 函数体
-	Obj *Locals;			// 本地变量
-	int StackSize;		// 栈大小
-};
 
 // 词法分析的终结符类型
 typedef enum {
@@ -155,7 +152,7 @@ bool consume(Token **Rest, Token *Tok, char *Str);
 Token *tokenize(char *Input);
 
 // 语法分析入口函数
-Function *parse(Token *Tok);
+Obj *parse(Token *Tok);
 
 // 代码生成入口函数
-void codegen(Function *Prog);
+void codegen(Obj *Prog);

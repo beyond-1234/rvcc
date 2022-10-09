@@ -9,7 +9,7 @@ static int Depth;
 // RICSV中函数的前6个寄存器就是用这几个寄存器来存
 static char *ArgReg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
 // 当前的函数
-static Function *CurrentFn;
+static Obj *CurrentFn;
 
 // 代码段计数
 static int count(void) {
@@ -63,10 +63,13 @@ static int alignTo(int N, int Align) {
 }
 
 // 根据变量的链表计算出偏移量
-static void assignLVarOffsets(Function *Prog) {
+static void assignLVarOffsets(Obj *Prog) {
 	
 	// 为每个函数计算其变量所用的栈空间
-	for (Function *Fn = Prog; Fn; Fn = Fn->Next) {
+	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
+		if (!Fn->isFunction) {
+			continue;
+		}
 		int Offset = 0;
 		for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
 			// 每个变量分配8字节
@@ -340,14 +343,19 @@ static void genStmt(Node *Nod) {
 }
 
 
-void codegen(Function *Prog) {
+void codegen(Obj *Prog) {
 	assignLVarOffsets(Prog);
 
-	for (Function *Fn = Prog; Fn; Fn = Fn->Next) {
+	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
+		if (!Fn->isFunction) {
+			continue;
+		}
 
 		// 为每一个方法声明一个全局方法段
 		printf("  # 定义全局%s段\n", Fn->Name);
 		printf("  .globl %s\n", Fn->Name);
+
+		printf("  .text\n");
 		// 每个方法段标签
 		printf("\n# =====%s段开始===============\n", Fn->Name);
 		printf("# %s段标签\n", Fn->Name);
