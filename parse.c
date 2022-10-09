@@ -60,6 +60,15 @@ static Obj *findVar(Token *Tok) {
 			return Var;
 		}
 	}
+
+	// 查找Globals变量中是否存在同名变量
+	for (Obj *Var = Globals; Var; Var = Var->Next) {
+		// 判断变量名是否和终结符名长度一直，然后逐字比较
+		if(strlen(Var->Name) == Tok->Len &&
+				!strncmp(Tok->Loc, Var->Name, Tok->Len)) {
+			return Var;
+		}
+	}
 	return NULL;
 }
 
@@ -686,13 +695,49 @@ static Token *function(Token *Tok, Type *BaseTy) {
 	return Tok;
 }
 
+// 构造全局变量 
+static Token *globalVariable(Token *Tok, Type *BaseTy) {
+	bool First = true;
+
+	while (!consume(&Tok, Tok, ";")) {
+		if (!First) {
+			Tok = skip(Tok, ",");
+		}
+		First = false;
+
+		Type *Ty = declarator(&Tok, Tok, BaseTy);
+		newGVar(getIdent(Ty->Name), Ty);
+	}
+	return Tok;
+}
+
+// 区分函数还是全局变量
+static bool isFunction(Token *Tok) {
+	if (equal(Tok, ";")) {
+		return false;
+	}
+
+	// 虚拟变量，用于调用declarator
+	Type Dummy = {};
+	Type *Ty = declarator(&Tok, Tok, &Dummy);
+	return Ty->Kind == TY_FUNC;
+}
+
 // 语法分析入口函数
 Obj *parse(Token *Tok){
 	Globals = NULL;
 
 	while (Tok->Kind != TK_EOF) {
 		Type *Basety = declspec(&Tok, Tok);
-		Tok = function(Tok, Basety);
+
+		// 函数
+		if (isFunction(Tok)) {
+			Tok = function(Tok, Basety);
+			continue;
+		}
+
+		// 全局变量
+		Tok = globalVariable(Tok, Basety);
 	}
 
 	return Globals;
