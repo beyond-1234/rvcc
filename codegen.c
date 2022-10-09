@@ -43,16 +43,24 @@ static void load(Type *Ty) {
 	}
 
 	printf("  # 读取a0中存放的地址，得到的值存入a0\n");
-	// 当前变量写死为8字节，所以用ld
-	printf("  ld a0, 0(a0)");
+	if (Ty->Size == 1) {
+		// b = byte = 1字节
+		printf("  lb a0, 0(a0)");
+	} else {
+		// ld 的d=double word=8字节
+		printf("  ld a0, 0(a0)");
+	}
 }
 
 // 将栈顶值(为一个地址)存入a0
-static void store() {
+static void store(Type *Ty) {
 	pop("a1");
 	printf("  # 读取a0的值，写入到a1存放的地址\n");
-	// 当前变量写死为8字节，所以用sd
-	printf("  sd a0, 0(a1)");
+	if (Ty->Size == 1) {
+		printf("  sb a0, 0(a1)");
+	} else {
+		printf("  sd a0, 0(a1)");
+	}
 }
 
 // 对其到Align的整数倍
@@ -156,7 +164,7 @@ static void genExpr(Node *Nod) {
 			push();
 			// 右部是右值，为表达式的值
 			genExpr(Nod->RHS);
-			store();
+			store(Nod->Ty);
 			return;
 		case ND_FUNCALL: {
 			// 记录参数个数
@@ -418,7 +426,12 @@ static void emitText(Obj *Prog) {
 		int I = 0;
 		for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
 			printf("  # 将%s寄存器的值存入%s的栈地址\n", ArgReg[1], Var->Name);
-			printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+			
+			if (Var->Ty->Size == 1) {
+				printf("  sb %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+			} else {
+				printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+			}
 		}
 
 		printf("\n# =====%s段主体===============\n", Fn->Name);

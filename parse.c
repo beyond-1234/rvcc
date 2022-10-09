@@ -9,7 +9,7 @@ Obj *Globals;		// 全局变量
 // 越往下优先级越高
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = "int"
+// declspec = "char | int"
 // declarator = "*"* ident typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -214,6 +214,11 @@ static int getNumber(Token *Tok) {
 	return Tok->Val;
 }
 
+// 判断是否为类型名
+static bool isTypename(Token *Tok) {
+	return equal(Tok, "char") || equal(Tok, "int");
+}
+
 // 解析复合语句(代码块)
 // compoundStmt = stmt* }
 static Node *compoundStmt(Token **Rest, Token *Tok) {
@@ -228,7 +233,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	// 匹配最近的}来结束{代码块，用于支持{}嵌套
   while (!equal(Tok, "}")) {
 		// declaration
-		if (equal(Tok, "int")) {
+		if (isTypename(Tok)) {
 			Cur->Next = declaration(&Tok, Tok);
 		}else {
 			Cur->Next = stmt(&Tok, Tok);
@@ -249,6 +254,13 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 }
 
 static Type *declspec(Token **Rest, Token *Tok) {
+	// char
+	if (equal(Tok, "char")) {
+		*Rest = Tok->Next;
+		return TyChar;
+	}
+
+	// int
 	*Rest = skip(Tok, "int");
 	return TyInt;
 }

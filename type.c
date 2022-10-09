@@ -5,9 +5,10 @@
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 // 全局变量TyInt，用来将Type赋值为int类型
 Type *TyInt = &(Type){TY_INT, 8};
+Type *TyChar = &(Type){TY_CHAR, 1};
 
-// 判断Type是否为int类型
-bool isInteger(Type *Ty) { return Ty->Kind == TY_INT; }
+// 判断Type是否为整型
+bool isInteger(Type *Ty) { return Ty->Kind == TY_CHAR || Ty->Kind == TY_INT; }
 
 Type *copyType(Type *Ty) {
 	Type *Ret = calloc(1, sizeof(Type));
