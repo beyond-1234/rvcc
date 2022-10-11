@@ -32,7 +32,7 @@ Obj *Globals;		// 全局变量
 // mul = 多个基数(primary)相乘除得到的
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num | str
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
@@ -635,6 +635,27 @@ static Node *funCall(Token **Rest, Token *Tok) {
 	return Nod;
 }
 
+// 新增唯一姓名
+static char *newUniqueName() {
+	static int Id = 0;
+	char *Buf = calloc(1, 20);
+	// 将格式化处理过后的字符串存入Buf
+	sprintf(Buf, ".L..%d", Id++);
+	return Buf;
+}
+
+// 新增全局匿名变量
+static Obj *newAnonGVar(Type *Ty) {
+	return newGVar(newUniqueName(), Ty);
+}
+
+// 新增字符串字面值
+static Obj *newStringLiteral(char *Str, Type *Ty) {
+	Obj *Var = newAnonGVar(Ty);
+	Var->InitData = Str;
+	return Var;
+}
+
 static Node *primary(Token **Rest, Token *Tok) {
 
 	// 如果是(expr)
@@ -663,6 +684,13 @@ static Node *primary(Token **Rest, Token *Tok) {
 		if(!Var) {
 			errorTok(Tok, "undefined variable");
 		}
+		*Rest = Tok->Next;
+		return newVarNode(Var, Tok);
+	}
+
+	// 如果是字符串字面值
+	if (Tok->Kind == TK_STR) {
+		Obj *Var = newStringLiteral(Tok->Str, Tok->Ty);
 		*Rest = Tok->Next;
 		return newVarNode(Var, Tok);
 	}

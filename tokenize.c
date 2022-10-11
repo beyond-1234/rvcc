@@ -140,6 +140,25 @@ static bool isIdent2(char C) {
 	return isIdent1(C) || ('1' <= C && C <= '9');
 }
 
+// 读取包括引号的字符串字面值 "str"
+static Token *readStringLiteral(char *Start) {
+	char *P = Start + 1;
+	// 识别字符串内非"的字符
+	for (; *P != '"'; ++P) {
+		// 遇到换行和\0则报错
+		if (*P == '\n' || *P == '\0') {
+			errorAt(Start, "unclosed string literal");	
+		}
+	}
+
+	Token *Tok = newToken(TK_STR, Start, P + 1);
+	// 构建char[]
+	Tok->Ty = arrayOf(TyChar, P - Start);
+	// 拷贝双引号间的内容，结果是\0的char *类型
+	Tok->Str = strndup(Start + 1, P - Start - 1);
+	return Tok;
+}
+
 // 终结符解析
 Token *tokenize(char *P) {
 	CurrentInput = P;
@@ -166,6 +185,13 @@ Token *tokenize(char *P) {
       Cur->Len = P - OldPtr;
       continue;
     }
+
+		if (*P == '"') {
+			Cur->Next = readStringLiteral(P);
+			Cur = Cur->Next;
+			P += Cur->Len;
+			continue;
+		}
 
 		// 解析标记符=解析变量
 		// 或解析关键字

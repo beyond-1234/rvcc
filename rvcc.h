@@ -51,6 +51,9 @@ struct Obj {
 	bool isFunction;	// 函数或全局变量
 	Obj *Params;			// 函数形参
 
+	// 全局变量
+	char *InitData;
+
   Node *Body;    // 函数体
   Obj *Locals;   // 本地变量
   int StackSize; // 栈大小
@@ -62,6 +65,7 @@ typedef enum {
   TK_IDENT,			// 标记符，可以为变量名、函数名等
   TK_PUNCT,			// 操作符如： + -
   TK_NUM,				// 数字
+  TK_STR,				// 字符串字面值
   TK_KEYWORD,   // 关键字
   TK_EOF,				// 文件终止符，即文件的最后
 } TokenKind;
@@ -74,6 +78,9 @@ struct Token {
   int Val;        // 值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
+
+	Type *Ty;					// TK_STR使用
+	char *Str;				// 字符串字面值，包括'\0'
 };
 
 struct Node {

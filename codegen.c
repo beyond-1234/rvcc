@@ -358,6 +358,7 @@ static void genStmt(Node *Nod) {
   errorTok(Nod->Tok, "invalid statement");
 }
 
+// 生成全局变量的汇编代码
 static void emitData(Obj *Prog) {
 	for (Obj *Var = Prog; Var; Var = Var->Next) {
 		if (Var->isFunction) {
@@ -366,11 +367,24 @@ static void emitData(Obj *Prog) {
 
 		printf("  # 数据段标签\n");
     printf("  .data\n");
+    printf("  # 全局段%s\n", Var->Name);
     printf("  .globl %s\n", Var->Name);
-    printf("  # 全局变量%s\n", Var->Name);
     printf("%s:\n", Var->Name);
-    printf("  # 零填充%d位\n", Var->Ty->Size);
-    printf("  .zero %d\n", Var->Ty->Size);
+
+		if (Var->InitData) {
+			printf("  # 字符串字面量%s\n", Var->InitData);
+			for (int I = 0; I < Var->Ty->Size; ++I) {
+				char C = Var->InitData[I];
+				if (isprint(C)) {
+					printf("  .byte %d\t# %c\n", C, C);
+				} else {
+					printf("  .byte %d\n", C);
+				}
+			}
+		} else {
+			printf("  # 全局变量零填充%d位\n", Var->Ty->Size);
+			printf("  .zero %d\n", Var->Ty->Size);
+		}
 	}
 }
 
