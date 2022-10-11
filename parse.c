@@ -638,10 +638,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
 // 新增唯一姓名
 static char *newUniqueName() {
 	static int Id = 0;
-	char *Buf = calloc(1, 20);
-	// 将格式化处理过后的字符串存入Buf
-	sprintf(Buf, ".L..%d", Id++);
-	return Buf;
+	return format("..L..%d", Id++);
 }
 
 // 新增全局匿名变量

@@ -146,6 +146,8 @@ Type *funcType(Type *ReturnTy);
 // 复制类型
 Type *copyType(Type *Ty);
 Type *arrayOf(Type *base, int Size);
+// 字符串解析
+char *format(char *Fmt, ...);
 
 // 报错函数
 void error(char *Fmt, ...);
