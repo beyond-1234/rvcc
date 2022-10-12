@@ -638,7 +638,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
 // 新增唯一姓名
 static char *newUniqueName() {
 	static int Id = 0;
-	return format("..L..%d", Id++);
+	return format(".L..%d", Id++);
 }
 
 // 新增全局匿名变量

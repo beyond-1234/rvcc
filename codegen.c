@@ -367,12 +367,10 @@ static void emitData(Obj *Prog) {
 
 		printf("  # 数据段标签\n");
     printf("  .data\n");
-    printf("  # 全局段%s\n", Var->Name);
-    printf("  .globl %s\n", Var->Name);
     printf("%s:\n", Var->Name);
 
 		if (Var->InitData) {
-			printf("  # 字符串字面量%s\n", Var->InitData);
+			printf("  # 字符串字面量\n");
 			for (int I = 0; I < Var->Ty->Size; ++I) {
 				char C = Var->InitData[I];
 				if (isprint(C)) {
@@ -382,8 +380,11 @@ static void emitData(Obj *Prog) {
 				}
 			}
 		} else {
-			printf("  # 全局变量零填充%d位\n", Var->Ty->Size);
-			printf("  .zero %d\n", Var->Ty->Size);
+				printf("  # 全局段%s\n", Var->Name);
+				printf("  .globl %s\n", Var->Name);
+				printf("%s:\n", Var->Name);
+				printf("  # 全局变量零填充%d位\n", Var->Ty->Size);
+				printf("  .zero %d\n", Var->Ty->Size);
 		}
 	}
 }
