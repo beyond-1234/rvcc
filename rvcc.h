@@ -33,7 +33,8 @@ typedef enum {
 	ND_BLOCK,			// { ... } 代码块
 	ND_FUNCALL,		// 函数调用
 	ND_VAR,				// 变量
-	ND_EXPR_STMT	// 表达式语句
+	ND_EXPR_STMT,	// 表达式语句
+	ND_STMT_EXPR	// 语句表达式
 } NodeKind;
 
 typedef struct Type Type;
@@ -99,7 +100,7 @@ struct Node {
 	Node *Init;				// for循环的初始化语句 
 	Node *Inc;				// for循环的递增语句
 
-	// 代码块
+	// 代码块 or stmt expr
 	Node *Body;
 
 	char *FuncName;		// 函数名

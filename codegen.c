@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 static void genExpr(Node *Nod);
+static void genStmt(Node *Nod);
 
 // 记录栈的深度
 static int Depth;
@@ -165,6 +166,11 @@ static void genExpr(Node *Nod) {
 			// 右部是右值，为表达式的值
 			genExpr(Nod->RHS);
 			store(Nod->Ty);
+			return;
+		case ND_STMT_EXPR:
+			for (Node *N = Nod->Body; N; N = N->Next) {
+				genStmt(N);
+			}
 			return;
 		case ND_FUNCALL: {
 			// 记录参数个数

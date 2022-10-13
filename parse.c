@@ -32,7 +32,12 @@ Obj *Globals;		// 全局变量
 // mul = 多个基数(primary)相乘除得到的
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num | str
+// primary = "(" "{" stmt+ "}" ")"
+//         | "(" expr ")"
+//         | "sizeof" unary
+//         | ident funcArgs?
+//         | str
+//         | num
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
@@ -654,6 +659,17 @@ static Obj *newStringLiteral(char *Str, Type *Ty) {
 }
 
 static Node *primary(Token **Rest, Token *Tok) {
+
+	// if is statement expression
+	// ({ statement })
+	if (equal(Tok, "(") && equal(Tok->Next, "{")) {
+		// this is GNU statement expression
+		Node *Nod = newNode(ND_STMT_EXPR, Tok);
+		// treate inner statement as compound statement
+		Nod->Body = compoundStmt(&Tok, Tok->Next->Next)->Body;
+		*Rest = skip(Tok, ")");
+		return Nod;
+	}
 
 	// 如果是(expr)
 	if(equal(Tok, "(")) {
