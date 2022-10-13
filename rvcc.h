@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 // 共用头文件，定义了多个文件共同使用的函数和数据结构
 
@@ -161,7 +162,7 @@ Token *skip(Token *Tok, char *Str);
 bool consume(Token **Rest, Token *Tok, char *Str);
 
 // 词法分析函数
-Token *tokenize(char *Input);
+Token *tokenizeFile(char *Path);
 
 // 语法分析入口函数
 Obj *parse(Token *Tok);

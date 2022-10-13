@@ -15,6 +15,8 @@ $(OBJS): rvcc.h
 
 test: rvcc
 	./test.sh
+	# this is to test read code from file
+	#./test.sh tmp.c
 
 clean:
 	rm -f rvcc *.o *.s tmp* a.out

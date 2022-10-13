@@ -19,7 +19,7 @@ assert() {
 	# 运行程序
 	# 如果运行不成功，则exit退出；成功则不会执行exit
 	# $input 必须带双引号才能防止单个空格被rvcc识别成参数
-	./rvcc "$input" > tmp.s || exit
+	echo "$input" | ./rvcc "$input" > tmp.s || exit
 	# 编译rvcc产生的汇编文件
 	~/riscv/bin/riscv64-unknown-linux-gnu-gcc -static -o tmp tmp.s tmp2.o
 

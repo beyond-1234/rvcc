@@ -1,5 +1,6 @@
 #include "rvcc.h"
 
+static char *CurrentFileName;
 static char *CurrentInput;
 
 // 输出错误信息
@@ -20,11 +21,40 @@ void error(char *Fmt, ...) {
   exit(1);
 }
 
+// 输出例如下面的错误，并退出
+// foo.c:10: x = y + 1;
+//               ^ <错误信息>
 static void verrorAt(char *Loc, char *Fmt, va_list VA) {
-	fprintf(stderr, "%s\n", CurrentInput);
+	// find the line including Loc
+	char *Line = Loc;
+	// Line goes to the beginning of the actual line
+	// if Line < CurrentInput, then is the beginning of file
+	// Line[-1] != '\n' if the one before the first char of current line is the ending of the last line
+	while (CurrentInput < Line && Line[-1] != '\n') {
+		Line--;
+	}
+	
+	// End goes to the ending of the line which is \n
+	char *End = Loc;
+	while (*End != '\n') {
+		End++;
+	}
 
-	// 计算出错位置，Loc是出错位置的指针
-	int Pos = Loc - CurrentInput;
+	int LineNo = 1;
+	for (char *P = CurrentInput; P < Line; P++) {
+		// LineNo++ if counters \n
+		if (*P == '\n') {
+			LineNo++;
+		}
+	}
+
+	// print filename:line 
+	// Indent records how many words printed
+	int Indent = fprintf(stderr, "%s:%d ", CurrentFileName, LineNo);
+	fprintf(stderr, "%.*s\n", (int)(End - Line), Line);
+
+	// 计算出错位置，Loc是出错位置的指针 + how many words printed
+	int Pos = Loc - CurrentInput + Indent;
 	// 将字符串补齐Pos位，因为是空字符串，所以填充Pos个空格
 	fprintf(stderr, "%*s", Pos, "");
 	fprintf(stderr, "^ ");
@@ -253,7 +283,8 @@ static Token *readStringLiteral(char *Start) {
 
 
 // 终结符解析
-Token *tokenize(char *P) {
+Token *tokenize(char *FileName, char *P) {
+	CurrentFileName = FileName;
 	CurrentInput = P;
   Token Head = {};
   Token *Cur = &Head;
@@ -321,4 +352,57 @@ Token *tokenize(char *P) {
 
   // Head无内容，所以直接返回Next
   return Head.Next;
+}
+
+static char *readFile(char *Path) {
+	FILE *FP;
+
+	if (strcmp(Path, "-") == 0) {
+		// if filename is - , then read from stream
+		FP = stdin;
+	} else {
+		FP = fopen(Path, "r");
+		if (!FP) {
+			// errno is the last error code within system
+			// strerror function print error message
+			error("can not open %s: %s", Path, strerror(errno));
+		}
+	}
+
+	char *Buf;
+	size_t BufLen;
+	FILE *Out = open_memstream(&Buf, &BufLen);
+
+	// read the whole file
+	while (true) {
+		char Buf2[4096];
+		// fread function reads from file stream to byte array
+		// params: byte array, array element size, array max len, file pointer
+		int N = fread(Buf2, 1, sizeof(Buf2), FP);
+		if (N == 0) {
+			break;
+		}
+		// params: byte array, array element size, actual array len, file pointer
+		fwrite(Buf2, 1, N, Out);
+	}
+
+	// finished reading file
+	if (FP != stdin) {
+		fclose(FP);
+	}
+
+	fflush(Out);
+
+	// make sure last line ended by \n
+	// keep consistency with previous code
+	if (BufLen == 0 || Buf[BufLen - 1] != '\n') {
+		fputc('\n', Out);
+	}
+	fputc('\0', Out);
+	fclose(Out);
+	return Buf;
+}
+
+Token *tokenizeFile(char *Path) {
+	return tokenize(Path, readFile(Path));
 }
