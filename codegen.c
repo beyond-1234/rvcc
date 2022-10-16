@@ -136,6 +136,9 @@ static void genAddr(Node *Nod) {
 
 // 对AST二叉树进行中序遍历处理
 static void genExpr(Node *Nod) {
+	// .loc 文件编号 行号
+	printLine("  .loc 1 %d", Nod->Tok->LineNo);
+
   // 这里我们将算式分解为 num (op num) (op num)...的形式
   // 所以先将第一个num传入a0
 	switch(Nod->Kind) {
@@ -279,6 +282,9 @@ static void genExpr(Node *Nod) {
 }
 
 static void genStmt(Node *Nod) {
+	// .loc 文件编号 行号
+	printLine("  .loc 1 %d", Nod->Tok->LineNo);
+
 	switch(Nod->Kind) {
 		case ND_FOR: {
 			// 使用{}包裹，这样C的生命周期仅存在于这个case内

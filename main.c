@@ -74,6 +74,10 @@ int main(int Argc, char **Argv) {
 	Obj *Prog = parse(Tok);
 
 	FILE *Out = openFile(OptO);
+
+	// .file 文件编号 文件名
+  fprintf(Out, ".file 1 \"%s\"\n", InputPath);
+
 	// 生成汇编代码
 	codegen(Prog, Out);
 
