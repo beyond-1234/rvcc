@@ -278,6 +278,11 @@ assert 2 'int main() { int x=2; { int x=3; } return x; }'
 assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'
 assert 3 'int main() { int x=2; { x=3; } return x; }'
 
+# [48] 支持,
+assert 3 'int main() { 1, 2, 3; return 3; }'
+assert 5 'int main() { int i=2, j=3; (i=5,j)=6; return i; }'
+assert 6 'int main() { int i=2, j=3; (i=5,j)=6; return j; }'
+
 # 如果运行正常未提前退出，程序将显示OK
 echo OK
 

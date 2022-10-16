@@ -129,6 +129,10 @@ static void genAddr(Node *Nod) {
 		case ND_DEREF:
 			genExpr(Nod->LHS);
 			return;
+		case ND_COMMA:
+			genExpr(Nod->LHS);
+			genAddr(Nod->RHS);
+			return;
 	}
 
 	errorTok(Nod->Tok, "not an lvalue");
@@ -186,6 +190,10 @@ static void genExpr(Node *Nod) {
 			for (Node *N = Nod->Body; N; N = N->Next) {
 				genStmt(N);
 			}
+			return;
+		case ND_COMMA:
+			genExpr(Nod->LHS);
+			genExpr(Nod->RHS);
 			return;
 		case ND_FUNCALL: {
 			// 记录参数个数

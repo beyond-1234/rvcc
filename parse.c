@@ -536,8 +536,13 @@ static Node *exprStmt(Token **Rest, Token *Tok) {
 }
 
 static Node *expr(Token **Rest, Token *Tok) {
-	return assign(Rest, Tok);
-	/* return equality(Rest, Tok); */
+	Node *Nd = assign(&Tok, Tok);
+
+	if (equal(Tok, ","))
+    return newBinary(ND_COMMA, Nd, expr(Rest, Tok->Next), Tok);
+
+  *Rest = Tok;
+  return Nd;
 }
 
 static Node *assign(Token **Rest, Token *Tok) {
