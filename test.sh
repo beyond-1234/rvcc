@@ -19,7 +19,7 @@ assert() {
 	# 运行程序
 	# 如果运行不成功，则exit退出；成功则不会执行exit
 	# $input 必须带双引号才能防止单个空格被rvcc识别成参数
-	echo "$input" | ./rvcc "$input" -o tmp.s - || exit
+	echo "$input" | ./rvcc "$input" -o tmp.s -|| exit
 	# 编译rvcc产生的汇编文件
 	~/riscv/bin/riscv64-unknown-linux-gnu-gcc -static -o tmp tmp.s tmp2.o
 
@@ -272,6 +272,11 @@ assert 2 'int main() { /* return 1; */
              return 2; }'
 assert 2 'int main() { // return 1;
              return 2; }'
+
+# [44] 处理域
+assert 2 'int main() { int x=2; { int x=3; } return x; }'
+assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'
+assert 3 'int main() { int x=2; { x=3; } return x; }'
 
 # 如果运行正常未提前退出，程序将显示OK
 echo OK

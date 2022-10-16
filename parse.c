@@ -1,4 +1,25 @@
 #include "rvcc.h"
+#include <stdlib.h>
+
+// 局部和全局变量的域
+typedef struct VarScope VarScope;
+struct VarScope {
+	VarScope *Next;
+	char *Name;
+	Obj *Var;
+};
+
+// 表示一个块域
+typedef struct Scope Scope;
+struct Scope {
+	// 指向上一级的域
+	Scope *Next;
+	// 指向当前域的变量
+	VarScope *Vars;
+};
+
+// 指向所有域的链表
+static Scope *Scp = &(Scope){};
 
 // 在解析时，所有的变量实例都会被累加到这个列表里
 Obj *Locals;		// 局部变量
@@ -55,26 +76,53 @@ static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
 
+// 进入域
+static void enterScope(void) {
+	Scope *S = calloc(1, sizeof(Scope));
+	// 后来的域在链表头部
+	// 类似栈的结构，栈顶对应最近的域
+	S->Next = Scp;
+	Scp = S;
+}
+
+// 离开域
+static void leaveScope() {
+	Scp = Scp->Next;
+}
+
 // 通过名称，查找一个本地变量
 static Obj *findVar(Token *Tok) {
-	// 查找Locals变量中是否存在同名变量
-	for (Obj *Var = Locals; Var; Var = Var->Next) {
-		// 判断变量名是否和终结符名长度一直，然后逐字比较
-		if(strlen(Var->Name) == Tok->Len &&
-				!strncmp(Tok->Loc, Var->Name, Tok->Len)) {
-			return Var;
+
+	// 此处越先匹配到的域，越深层
+	for (Scope *S = Scp; S; S = S->Next) {
+		// 遍历域内的所有变量
+		for (VarScope *VarScp = S->Vars; VarScp; VarScp = VarScp->Next) {
+			if (equal(Tok, VarScp->Name)) {
+				return VarScp->Var;
+			}
 		}
 	}
 
-	// 查找Globals变量中是否存在同名变量
-	for (Obj *Var = Globals; Var; Var = Var->Next) {
-		// 判断变量名是否和终结符名长度一直，然后逐字比较
-		if(strlen(Var->Name) == Tok->Len &&
-				!strncmp(Tok->Loc, Var->Name, Tok->Len)) {
-			return Var;
-		}
-	}
 	return NULL;
+
+	/* // 查找Locals变量中是否存在同名变量 */
+	/* for (Obj *Var = Locals; Var; Var = Var->Next) { */
+	/* 	// 判断变量名是否和终结符名长度一直，然后逐字比较 */
+	/* 	if(strlen(Var->Name) == Tok->Len && */
+	/* 			!strncmp(Tok->Loc, Var->Name, Tok->Len)) { */
+	/* 		return Var; */
+	/* 	} */
+	/* } */
+
+	/* // 查找Globals变量中是否存在同名变量 */
+	/* for (Obj *Var = Globals; Var; Var = Var->Next) { */
+	/* 	// 判断变量名是否和终结符名长度一直，然后逐字比较 */
+	/* 	if(strlen(Var->Name) == Tok->Len && */
+	/* 			!strncmp(Tok->Loc, Var->Name, Tok->Len)) { */
+	/* 		return Var; */
+	/* 	} */
+	/* } */
+	/* return NULL; */
 }
 
 // 新建一个节点
@@ -85,11 +133,23 @@ static Node *newNode(NodeKind Kind, Token *Tok) {
 	return Nod;
 }
 
+// 将变量存入当前域中
+static VarScope *pushScope(char *Name, Obj *Var) {
+	VarScope *S = calloc(1, sizeof(VarScope));
+	S->Name = Name;
+	S->Var = Var;
+	// 后来的在链表头部
+	S->Next = Scp->Vars;
+	Scp->Vars = S;
+	return S;
+}
+
 // 新建一个变量
 static Obj *newVar(char *Name, Type *Ty) {
 	Obj *Var = calloc(1, sizeof(Obj));
 	Var->Name = Name;
 	Var->Ty = Ty;
+	pushScope(Name, Var);
 	return Var;
 }
 
@@ -233,6 +293,11 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	// 来表示多个表达式语句
   Node Head = {};
   Node *Cur = &Head;
+
+	// 按照{}匹配，每个{}作为一个新的域
+	// 进入新的域
+	enterScope();
+
   // (declaration | stmt)* "}"
 	// 匹配声明 或
 	// 匹配最近的}来结束{代码块，用于支持{}嵌套
@@ -249,6 +314,9 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 		// 构造完语法树后为节点添加类型信息
 		addType(Cur);
   }
+
+	// 结束当前域
+	leaveScope();
 	
 	// Nod的Body中存储了{}内解析的语句
 	// Body指的是当前{}中的所有语句构成的链表
@@ -739,12 +807,19 @@ static Token *function(Token *Tok, Type *BaseTy) {
   // 清空全局变量Locals
 	Locals = NULL;
 
+	// 进入新的域
+	enterScope();
+
 	createParamLVars(Ty->Params);
 	Fn->Params = Locals;
 
 	Tok = skip(Tok, "{");
 	Fn->Body = compoundStmt(&Tok, Tok);
 	Fn->Locals = Locals;
+
+	// 离开域
+	leaveScope();
+
 	return Tok;
 }
 
