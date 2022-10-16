@@ -1,9 +1,10 @@
 #include "rvcc.h"
-#include <stdio.h>
 
 static void genExpr(Node *Nod);
 static void genStmt(Node *Nod);
 
+// 输出文件
+static FILE *OutputFile;
 // 记录栈的深度
 static int Depth;
 // 用于函数参数的寄存器
@@ -17,10 +18,10 @@ static void printLine(char *Fmt, ...) {
 	va_list VA;
 
 	va_start(VA, Fmt);
-	vprintf(Fmt, VA);
+	vfprintf(OutputFile, Fmt, VA);
 	va_end(VA);
 
-	printf("\n");
+	fprintf(OutputFile, "\n");
 }
 
 // 代码段计数
@@ -57,10 +58,10 @@ static void load(Type *Ty) {
 	printLine("  # 读取a0中存放的地址，得到的值存入a0");
 	if (Ty->Size == 1) {
 		// b = byte = 1字节
-		printf("  lb a0, 0(a0)");
+		printLine("  lb a0, 0(a0)");
 	} else {
 		// ld 的d=double word=8字节
-		printf("  ld a0, 0(a0)");
+		printLine("  ld a0, 0(a0)");
 	}
 }
 
@@ -69,9 +70,9 @@ static void store(Type *Ty) {
 	pop("a1");
 	printLine("  # 读取a0的值，写入到a1存放的地址");
 	if (Ty->Size == 1) {
-		printf("  sb a0, 0(a1)");
+		printLine("  sb a0, 0(a1)");
 	} else {
-		printf("  sd a0, 0(a1)");
+		printLine("  sd a0, 0(a1)");
 	}
 }
 
@@ -348,7 +349,7 @@ static void genStmt(Node *Nod) {
 			}
 			// 结束if语句，继续执行后面的语句
 			printLine("\n# 分支%d的.L.end.%d段标签", C, C);
-			printf(".L.end.%d:", C);
+			printLine(".L.end.%d:", C);
 			return;
 		}
 		case ND_BLOCK:
@@ -494,7 +495,9 @@ static void emitText(Obj *Prog) {
 	}
 }
 
-void codegen(Obj *Prog) {
+void codegen(Obj *Prog, FILE *Out) {
+	OutputFile = Out;
+
 	// 计算局部变量的偏移量
 	assignLVarOffsets(Prog);
 	// 生成数据

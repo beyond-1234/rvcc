@@ -15,6 +15,7 @@ $(OBJS): rvcc.h
 
 test: rvcc
 	./test.sh
+	./test-driver.sh
 	# this is to test read code from file
 	#./test.sh tmp.c
 
