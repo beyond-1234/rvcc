@@ -24,7 +24,7 @@ void error(char *Fmt, ...) {
 // 输出例如下面的错误，并退出
 // foo.c:10: x = y + 1;
 //               ^ <错误信息>
-static void verrorAt(char *Loc, char *Fmt, va_list VA) {
+static void verrorAt(int LineNo, char *Loc, char *Fmt, va_list VA) {
 	// find the line including Loc
 	char *Line = Loc;
 	// Line goes to the beginning of the actual line
@@ -38,14 +38,6 @@ static void verrorAt(char *Loc, char *Fmt, va_list VA) {
 	char *End = Loc;
 	while (*End != '\n') {
 		End++;
-	}
-
-	int LineNo = 1;
-	for (char *P = CurrentInput; P < Line; P++) {
-		// LineNo++ if counters \n
-		if (*P == '\n') {
-			LineNo++;
-		}
 	}
 
 	// print filename:line 
@@ -66,16 +58,24 @@ static void verrorAt(char *Loc, char *Fmt, va_list VA) {
 
 // 字符解析出错
 void errorAt(char *Loc, char *Fmt, ...) {
+	int LineNo = 1;
+	for (char *P = CurrentInput; P < Loc; P++) {
+		// LineNo++ if counters \n
+		if (*P == '\n') {
+			LineNo++;
+		}
+	}
+
 	va_list VA;
 	va_start(VA, Fmt);
-	verrorAt(Loc, Fmt, VA);
+	verrorAt(LineNo, Loc, Fmt, VA);
 }
 
 // Tok解析出错
 void errorTok(Token *Tok, char *Fmt, ...) {
 	va_list VA;
 	va_start(VA, Fmt);
-	verrorAt(Tok->Loc, Fmt, VA);
+	verrorAt(Tok->LineNo, Tok->Loc, Fmt, VA);
 }
 
 // 判断Tok的值是否等于指定值，没有用char，是为了后续拓展
@@ -281,6 +281,22 @@ static Token *readStringLiteral(char *Start) {
   return Tok;
 }
 
+// 为所有Token计算行号
+static void addLineNo(Token *Tok) {
+	char *P = CurrentInput;
+	int N = 1;
+
+	do {
+		if (P == Tok->Loc) {
+			Tok->LineNo = N;
+			Tok = Tok->Next;
+		}
+
+		if (*P == '\n') {
+			N++;
+		}
+	} while(*P++);
+}
 
 // 终结符解析
 Token *tokenize(char *FileName, char *P) {
@@ -366,6 +382,9 @@ Token *tokenize(char *FileName, char *P) {
 
   // 解析结束，增加一个EOF，表示终止符。
   Cur->Next = newToken(TK_EOF, P, P);
+
+	addLineNo(Head.Next);
+
 	// 由于解析标记符和解析关键字没有区别，所以我们最后判断以下关键字
 	convertKeyWords(Head.Next);	
 

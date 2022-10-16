@@ -83,6 +83,8 @@ struct Token {
 
 	Type *Ty;					// TK_STR使用
 	char *Str;				// 字符串字面值，包括'\0'
+
+	int LineNo;     // 行号
 };
 
 struct Node {
