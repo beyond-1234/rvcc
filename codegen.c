@@ -133,6 +133,12 @@ static void genAddr(Node *Nod) {
 			genExpr(Nod->LHS);
 			genAddr(Nod->RHS);
 			return;
+		case ND_MEMBER:
+			genAddr(Nod->LHS);
+			printLine("  addi a0, a0, %d", Nod->Mem->Offset);
+			return;
+		default:
+			break;
 	}
 
 	errorTok(Nod->Tok, "not an lvalue");
@@ -163,6 +169,7 @@ static void genExpr(Node *Nod) {
 			return;
 		// 变量
 		case ND_VAR:
+		case ND_MEMBER:
 			// 计算出变量的地址，然后存入a0
 			genAddr(Nod);
 			// 访问a0地址中存储的数据，存入a0中

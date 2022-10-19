@@ -1,5 +1,4 @@
 #include "rvcc.h"
-#include <stdlib.h>
 
 // 局部和全局变量的域
 typedef struct VarScope VarScope;
@@ -72,6 +71,7 @@ static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
+static Type *structDecl(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
@@ -281,7 +281,7 @@ static int getNumber(Token *Tok) {
 
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
-	return equal(Tok, "char") || equal(Tok, "int");
+	return equal(Tok, "char") || equal(Tok, "int") || equal(Tok, "struct") ;
 }
 
 // 解析复合语句(代码块)
@@ -334,8 +334,18 @@ static Type *declspec(Token **Rest, Token *Tok) {
 	}
 
 	// int
-	*Rest = skip(Tok, "int");
-	return TyInt;
+	if (equal(Tok, "int")) {
+		*Rest = Tok->Next;
+		return TyInt;
+	}
+
+	// structDecl
+	if (equal(Tok, "struct")) {
+		return structDecl(Rest, Tok->Next);
+	}
+
+	errorTok(Tok, "typename expected");
+	return NULL;
 }
 
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
@@ -674,19 +684,97 @@ static Node *unary(Token **Rest, Token *Tok) {
 	return postfix(Rest, Tok);
 }
 
+static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
+	Member Head = {};
+	Member *Cur = &Head;
+
+	while (!equal(Tok, "}")) {
+		// declspec
+		Type *BaseTy = declspec(&Tok, Tok);
+		int I = 0;
+
+		while (!consume(&Tok, Tok, ";")) {
+			if (I++) {
+				Tok = skip(Tok, ",");
+			}
+
+			Member *Mem = calloc(1, sizeof(Member));
+			// declarator
+			Mem->Ty = declarator(&Tok, Tok, BaseTy);
+			Mem->Name = Mem->Ty->Name;
+			Cur->Next = Mem;
+			Cur = Cur->Next;
+		}
+	}
+
+	*Rest = Tok->Next;
+	Ty->Mems = Head.Next;
+}
+
+static Type *structDecl(Token **Rest, Token *Tok) {
+	Tok = skip(Tok, "{");
+
+	// 构造一个结构体
+	Type *Ty = calloc(1, sizeof(Type));
+	Ty->Kind = TY_STRUCT;
+	structMembers(Rest, Tok, Ty);
+
+	int Offset = 0;
+	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+		Mem->Offset = Offset;
+		Offset += Mem->Ty->Size;
+	}
+	Ty->Size = Offset;
+
+	return Ty;
+}
+
+// 获取结构体成员
+static Member *getStructMember(Type *Ty, Token *Tok) {
+	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+		if (Mem->Name->Len == Tok->Len && !strncmp(Mem->Name->Loc, Tok->Loc, Tok->Len)) {
+			return Mem;
+		}
+	}
+	errorTok(Tok, "no such member");
+	return NULL;
+}
+
+// 构建结构体成员的节点
+static Node *structRef(Node *LHS, Token *Tok) {
+	addType(LHS);
+	if (LHS->Ty->Kind != TY_STRUCT) {
+		errorTok(LHS->Tok, "not a struct");
+	}
+
+	Node *Nod = newUnary(ND_MEMBER, LHS, Tok);
+	Nod->Mem = getStructMember(LHS->Ty, Tok);
+	return Nod;
+}
+
 static Node *postfix(Token **Rest, Token *Tok) {
 	Node *Nod = primary(&Tok, Tok);
 
-	while (equal(Tok, "[")) {
-		// x[y] == *(x+y)
-		Token *Start = Tok;
-		Node *Idx = expr(&Tok, Tok->Next);
-		Tok = skip(Tok, "]");
-		Nod = newUnary(ND_DEREF, newAdd(Nod, Idx, Start), Start);
+	while (true) {
+		if (equal(Tok, "[")) {
+			// x[y] == *(x+y)
+			Token *Start = Tok;
+			Node *Idx = expr(&Tok, Tok->Next);
+			Tok = skip(Tok, "]");
+			Nod = newUnary(ND_DEREF, newAdd(Nod, Idx, Start), Start);
+			continue;
+		}
+
+		if (equal(Tok, ".")) {
+			Nod = structRef(Nod, Tok->Next);
+			Tok = Tok->Next->Next;
+			continue;
+		}
+
+		*Rest = Tok;
+		return Nod;
 	}
 
-	*Rest = Tok;
-	return Nod;
 }
 
 static Node *funCall(Token **Rest, Token *Tok) {

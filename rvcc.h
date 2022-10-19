@@ -27,6 +27,7 @@ typedef enum {
 	ND_NUM,
 	ND_ASSIGN,		// 赋值
 	ND_COMMA,		  // 逗号
+	ND_MEMBER,		// 结构体成员
 	ND_ADDR,			// 取地址 &
 	ND_DEREF,			// 解引用 *
 	ND_IF,				// IF语句
@@ -42,6 +43,8 @@ typedef enum {
 typedef struct Type Type;
 // 语法树二叉树节点
 typedef struct Node Node;
+// 结构体成员
+typedef struct Member Member;
 
 // 变量 或 函数
 typedef struct Obj Obj;
@@ -107,6 +110,9 @@ struct Node {
 	// 代码块 or stmt expr
 	Node *Body;
 
+	// 结构体成员
+	Member *Mem;
+
 	char *FuncName;		// 函数名
 	Node *Args;				// 函数参数
 
@@ -119,7 +125,8 @@ typedef enum {
 	TY_INT,		// int 整型
 	TY_PTR,		// 指针
 	TY_FUNC,	// 函数
-	TY_ARRAY	// 数组
+	TY_ARRAY,	// 数组
+	TY_STRUCT	// 结构体
 } TypeKind;
 
 struct Type {
@@ -131,10 +138,21 @@ struct Type {
 
 	// 数组
 	int ArrayLen;			// 数组长度，元素总个数
+	
+	// 结构体成员
+	Member *Mems;
 
 	Type *ReturnTy;		// 函数返回的类型
 	Type *Params;			// 形参列表
 	Type *Next;				// 下一类型
+};
+
+// 结构体成员
+struct Member {
+	Member *Next;			// 下一成员
+	Type *Ty;					// 类型
+	Token *Name;			// 名称
+	int Offset;				// 成员在结构体内的偏移量
 };
 
 extern Type *TyChar;

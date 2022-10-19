@@ -1,5 +1,3 @@
-
-
 #include "rvcc.h"
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
@@ -98,6 +96,10 @@ void addType(Node *Nd) {
 	// , 的节点类型为右部的节点类型
 	case ND_COMMA:
 		Nd->Ty = Nd->RHS->Ty;
+		return;
+	// 将节点类型设置为成员的类型
+	case ND_MEMBER:
+		Nd->Ty = Nd->Mem->Ty;
 		return;
   // 将节点类型设为 指针，并指向左部的类型
   case ND_ADDR:
