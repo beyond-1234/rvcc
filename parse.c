@@ -718,13 +718,21 @@ static Type *structDecl(Token **Rest, Token *Tok) {
 	Type *Ty = calloc(1, sizeof(Type));
 	Ty->Kind = TY_STRUCT;
 	structMembers(Rest, Tok, Ty);
+	Ty->Align = 1;
 
 	int Offset = 0;
 	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+		//对齐成员变量的偏移量
+		Offset = alignTo(Offset, Mem->Ty->Align);
 		Mem->Offset = Offset;
 		Offset += Mem->Ty->Size;
+
+		// 偏移量为结构体成员的最大偏移量
+		if (Ty->Align < Mem->Ty->Align) {
+			Ty->Align = Mem->Ty->Align;
+		}
 	}
-	Ty->Size = Offset;
+	Ty->Size = alignTo(Offset, Ty->Align);
 
 	return Ty;
 }

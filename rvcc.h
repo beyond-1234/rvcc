@@ -132,6 +132,7 @@ typedef enum {
 struct Type {
 	TypeKind Kind;		// 种类
 	int Size;					// 大小，sizeof返回的值
+	int Align;				// 对其量
 
 	Type *Base;				// 指向的类型
 	Token *Name;			// 变量名
@@ -190,3 +191,4 @@ Obj *parse(Token *Tok);
 
 // 代码生成入口函数
 void codegen(Obj *Prog, FILE *Out);
+int alignTo(int N, int Align);
