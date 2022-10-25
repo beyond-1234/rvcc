@@ -63,7 +63,7 @@ Obj *Globals;		// 全局变量
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
 // unary = ("+" | "-" | "*" | "&") unary | postfix
-// postfix = primary ("[" expr "]")*
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" unary
@@ -810,6 +810,14 @@ static Node *postfix(Token **Rest, Token *Tok) {
 		}
 
 		if (equal(Tok, ".")) {
+			Nod = structRef(Nod, Tok->Next);
+			Tok = Tok->Next->Next;
+			continue;
+		}
+
+		if (equal(Tok, "->")) {
+			// x->y ==== (*x).y
+			Nod = newUnary(ND_DEREF, Nod, Tok);
 			Nod = structRef(Nod, Tok->Next);
 			Tok = Tok->Next->Next;
 			continue;

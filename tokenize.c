@@ -1,4 +1,5 @@
 #include "rvcc.h"
+#include <string.h>
 
 static char *CurrentFileName;
 static char *CurrentInput;
@@ -130,11 +131,15 @@ static bool startsWith(char *P, char *Str) {
 
 // 读取符号的长度
 static int readPunct(char *P) {
-	if(startsWith(P, "==") || startsWith(P, "!=")
-	|| startsWith(P, ">=") || startsWith(P, "<=")) {
-		return 2;
+	static char *KW[] = {"==", "!=", "<=", ">=", "->"};
+
+	for (int I = 0; I < sizeof(KW) / sizeof(*KW); I++) {
+		if (startsWith(P, KW[I])) {
+			return strlen(KW[I]);
+		}
 	}
 
+	// 判断1字节的操作符
 	return ispunct(*P) ? 1 : 0;
 }
 
