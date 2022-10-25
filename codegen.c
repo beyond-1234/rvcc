@@ -76,7 +76,9 @@ static void store(Type *Ty) {
 	}
 }
 
-// 对其到Align的整数倍
+// 把N对其到离Align最近的整数倍的值
+// ex: N=17，Align=8，则得到32
+// 注意栈是向下的，从高地址向低地址增长的
 // 用于栈的对齐
 int alignTo(int N, int Align) {
 	// (0,Align] 返回Align
@@ -93,8 +95,10 @@ static void assignLVarOffsets(Obj *Prog) {
 		}
 		int Offset = 0;
 		for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
-			// 每个变量分配8字节
+			// 每个变量分配相应字节
 			Offset += Var->Ty->Size;
+			// 对齐变量
+			Offset = alignTo(Offset, Var->Ty->Align);
 			// 为每个变量赋一个编译量，或者说是栈中地址
 			Var->Offset = -Offset;
 		}
