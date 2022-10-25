@@ -8,13 +8,25 @@ struct VarScope {
 	Obj *Var;
 };
 
+// 结构体标签的域
+typedef struct TagScope TagScope;
+struct TagScope {
+	TagScope *Next;		// 下一标签域
+	char *Name;				// 域名称
+	Type *Ty;					// 域类型
+};
+
 // 表示一个块域
 typedef struct Scope Scope;
 struct Scope {
 	// 指向上一级的域
 	Scope *Next;
+
+	// C有两个域: 变量域和结构体标签域
 	// 指向当前域的变量
 	VarScope *Vars;
+	// 指向当前域内的结构体标签
+	TagScope *Tags;
 };
 
 // 指向所有域的链表
@@ -104,25 +116,19 @@ static Obj *findVar(Token *Tok) {
 	}
 
 	return NULL;
+}
 
-	/* // 查找Locals变量中是否存在同名变量 */
-	/* for (Obj *Var = Locals; Var; Var = Var->Next) { */
-	/* 	// 判断变量名是否和终结符名长度一直，然后逐字比较 */
-	/* 	if(strlen(Var->Name) == Tok->Len && */
-	/* 			!strncmp(Tok->Loc, Var->Name, Tok->Len)) { */
-	/* 		return Var; */
-	/* 	} */
-	/* } */
+// 通过Token查找标签
+static Type *findTag(Token *Tok) {
+	for (Scope *S = Scp; S; S = S->Next) {
+		for (TagScope *S2 = S->Tags; S2; S2 = S2->Next) {
+			if (equal(Tok, S2->Name)) {
+				return S2->Ty;
+			}
+		}
+	}
 
-	/* // 查找Globals变量中是否存在同名变量 */
-	/* for (Obj *Var = Globals; Var; Var = Var->Next) { */
-	/* 	// 判断变量名是否和终结符名长度一直，然后逐字比较 */
-	/* 	if(strlen(Var->Name) == Tok->Len && */
-	/* 			!strncmp(Tok->Loc, Var->Name, Tok->Len)) { */
-	/* 		return Var; */
-	/* 	} */
-	/* } */
-	/* return NULL; */
+	return NULL;
 }
 
 // 新建一个节点
@@ -324,6 +330,15 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	Nod->Body = Head.Next;
 	*Rest = Tok->Next;
 	return Nod;
+}
+
+// 将标签存入当前的域中
+static void pushTagScope(Token *Tok, Type *Ty) {
+	TagScope *S = calloc(1, sizeof(TagScope));
+	S->Name = strndup(Tok->Loc, Tok->Len);
+	S->Ty = Ty;
+	S->Next = Scp->Tags;
+	Scp->Tags = S;
 }
 
 static Type *declspec(Token **Rest, Token *Tok) {
@@ -712,12 +727,28 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
 }
 
 static Type *structDecl(Token **Rest, Token *Tok) {
-	Tok = skip(Tok, "{");
+	// 读取结构体的标签
+	Token *Tag = NULL;
+	if (Tok->Kind == TK_IDENT) {
+		Tag = Tok;
+		Tok = Tok->Next;
+	}
+
+	// 如果标签已存在，且后面不是{，就返回这个Tag作为类型
+	if (Tag && !equal(Tok, "{")) {
+		Type *Ty = findTag(Tag);	
+		if (!Ty) {
+			errorTok(Tag, "unknown struct type");
+		}
+
+		*Rest = Tok;
+		return Ty;
+	}
 
 	// 构造一个结构体
 	Type *Ty = calloc(1, sizeof(Type));
 	Ty->Kind = TY_STRUCT;
-	structMembers(Rest, Tok, Ty);
+	structMembers(Rest, Tok->Next, Ty);
 	Ty->Align = 1;
 
 	int Offset = 0;
@@ -733,6 +764,11 @@ static Type *structDecl(Token **Rest, Token *Tok) {
 		}
 	}
 	Ty->Size = alignTo(Offset, Ty->Align);
+
+	// 如果有名称就注册结构体标签
+	if (Tag) {
+		pushTagScope(Tag, Ty);
+	}
 
 	return Ty;
 }
