@@ -8,7 +8,7 @@ struct VarScope {
 	Obj *Var;
 };
 
-// 结构体标签的域
+// 结构体和联合体标签的域
 typedef struct TagScope TagScope;
 struct TagScope {
 	TagScope *Next;		// 下一标签域
@@ -41,7 +41,7 @@ Obj *Globals;		// 全局变量
 // 越往下优先级越高
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = "char | int"
+// declspec = "char" | "int" | structDecl | unionDecl
 // declarator = "*"* ident typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -63,6 +63,10 @@ Obj *Globals;		// 全局变量
 // add = 多个乘数的加减结果
 // mul = 多个基数(primary)相乘除得到的
 // unary = ("+" | "-" | "*" | "&") unary | postfix
+// structMembers = (declspec declarator (","  declarator)* ";")*
+// structDecl = structUnionDecl
+// unionDecl = structUnionDecl
+// structUnionDecl = ident? ("{" structMembers)?
 // postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
@@ -84,6 +88,7 @@ static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
 static Type *structDecl(Token **Rest, Token *Tok);
+static Type *unionDecl(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
@@ -287,7 +292,8 @@ static int getNumber(Token *Tok) {
 
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
-	return equal(Tok, "char") || equal(Tok, "int") || equal(Tok, "struct") ;
+	return equal(Tok, "char") || equal(Tok, "int") 
+		|| equal(Tok, "struct") || equal(Tok, "union");
 }
 
 // 解析复合语句(代码块)
@@ -359,6 +365,10 @@ static Type *declspec(Token **Rest, Token *Tok) {
 		return structDecl(Rest, Tok->Next);
 	}
 
+	// unionDecl
+	if (equal(Tok, "union")) {
+		return unionDecl(Rest, Tok->Next);
+	}
 	errorTok(Tok, "typename expected");
 	return NULL;
 }
@@ -726,30 +736,36 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
 	Ty->Mems = Head.Next;
 }
 
-static Type *structDecl(Token **Rest, Token *Tok) {
+static Type *structUnionDecl(Token **Rest, Token *Tok) {
 	// 读取结构体的标签
-	Token *Tag = NULL;
-	if (Tok->Kind == TK_IDENT) {
-		Tag = Tok;
-		Tok = Tok->Next;
-	}
+  Token *Tag = NULL;
+  if (Tok->Kind == TK_IDENT) {
+    Tag = Tok;
+    Tok = Tok->Next;
+  }
 
-	// 如果标签已存在，且后面不是{，就返回这个Tag作为类型
-	if (Tag && !equal(Tok, "{")) {
-		Type *Ty = findTag(Tag);	
-		if (!Ty) {
-			errorTok(Tag, "unknown struct type");
-		}
+  if (Tag && !equal(Tok, "{")) {
+    Type *Ty = findTag(Tag);
+    if (!Ty)
+      errorTok(Tag, "unknown struct type");
+    *Rest = Tok;
+    return Ty;
+  }
 
-		*Rest = Tok;
-		return Ty;
-	}
+  // 构造一个结构体
+  Type *Ty = calloc(1, sizeof(Type));
+  Ty->Kind = TY_STRUCT;
+  structMembers(Rest, Tok->Next, Ty);
+  Ty->Align = 1;
 
-	// 构造一个结构体
-	Type *Ty = calloc(1, sizeof(Type));
-	Ty->Kind = TY_STRUCT;
-	structMembers(Rest, Tok->Next, Ty);
-	Ty->Align = 1;
+  // 如果有名称就注册结构体类型
+  if (Tag)
+    pushTagScope(Tag, Ty);
+  return Ty;
+}
+
+static Type *structDecl(Token **Rest, Token *Tok) {
+	Type *Ty = structUnionDecl(Rest, Tok);
 
 	int Offset = 0;
 	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
@@ -765,12 +781,23 @@ static Type *structDecl(Token **Rest, Token *Tok) {
 	}
 	Ty->Size = alignTo(Offset, Ty->Align);
 
-	// 如果有名称就注册结构体标签
-	if (Tag) {
-		pushTagScope(Tag, Ty);
-	}
-
 	return Ty;
+}
+
+static Type *unionDecl(Token **Rest, Token *Tok) {
+  Type *Ty = structUnionDecl(Rest, Tok);
+  Ty->Kind = TY_UNION;
+
+  // 联合体需要设置为最大的对齐量与大小，变量偏移量都默认为0
+  for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+    if (Ty->Align < Mem->Ty->Align)
+      Ty->Align = Mem->Ty->Align;
+    if (Ty->Size < Mem->Ty->Size)
+      Ty->Size = Mem->Ty->Size;
+  }
+  // 将大小对齐
+  Ty->Size = alignTo(Ty->Size, Ty->Align);
+  return Ty;
 }
 
 // 获取结构体成员
@@ -787,8 +814,8 @@ static Member *getStructMember(Type *Ty, Token *Tok) {
 // 构建结构体成员的节点
 static Node *structRef(Node *LHS, Token *Tok) {
 	addType(LHS);
-	if (LHS->Ty->Kind != TY_STRUCT) {
-		errorTok(LHS->Tok, "not a struct");
+	if (LHS->Ty->Kind != TY_STRUCT && LHS->Ty->Kind != TY_UNION) {
+		errorTok(LHS->Tok, "not a struct nor a union");
 	}
 
 	Node *Nod = newUnary(ND_MEMBER, LHS, Tok);
