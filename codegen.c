@@ -77,7 +77,9 @@ static void store(Type *Ty) {
 }
 
 // 把N对其到离Align最近的整数倍的值
-// ex: N=17，Align=8，则得到32
+// ex: N=17，Align=8，则得到24
+// 在创建变量时，fp先移动Size个大小，比如int就得到了32
+//
 // 注意栈是向下的，从高地址向低地址增长的
 // 用于栈的对齐
 int alignTo(int N, int Align) {
@@ -95,6 +97,15 @@ static void assignLVarOffsets(Obj *Prog) {
 		}
 		int Offset = 0;
 		for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
+
+			/* 对于栈来说，栈顶指针从高地址向低地址移动 */
+			/* 在创建变量时，fp指针会先向低地址移动相应大小，腾出变量的空间 */
+			/* 我们这里在腾出空间之前先对齐，对齐之后再腾出变量的空间 */
+			/* 比如若char 后面是 int */
+			/* 则会先为char计算偏移量，创建char(指针先移动1个字节，再填充1个字节)，占用1个字节； */
+			/* 再为int计算偏移量，此时将计算出对齐到最近的8的倍数字节位置，再创建int(指针先移动8个字节，再填充8个字节)，占用8个字节 */
+			/* 这样就以8的倍数对齐了变量空间，char和int中间隔了7个字节的空间 */
+
 			// 每个变量分配相应字节
 			Offset += Var->Ty->Size;
 			// 对齐变量
