@@ -41,7 +41,7 @@ Obj *Globals;		// 全局变量
 // 越往下优先级越高
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = "char" | "int" | "long" | structDecl | unionDecl
+// declspec = "char" | "int" | "long" | "short" | structDecl | unionDecl
 // declarator = "*"* ident typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -293,7 +293,8 @@ static int64_t getNumber(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
 	return equal(Tok, "char") || equal(Tok, "int") 
-		|| equal(Tok, "struct") || equal(Tok, "union") || equal(Tok, "long");
+		|| equal(Tok, "struct") || equal(Tok, "union") 
+		|| equal(Tok, "long") || equal(Tok, "short");
 }
 
 // 解析复合语句(代码块)
@@ -364,6 +365,12 @@ static Type *declspec(Token **Rest, Token *Tok) {
 	if (equal(Tok, "long")) {
 		*Rest = Tok->Next;
 		return TyLong;
+	}
+
+	// short
+	if (equal(Tok, "short")) {
+		*Rest = Tok->Next;
+		return TyShort;
 	}
 
 	// structDecl

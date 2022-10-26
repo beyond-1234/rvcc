@@ -59,6 +59,9 @@ static void load(Type *Ty) {
 	if (Ty->Size == 1) {
 		// b = byte = 1字节
 		printLine("  lb a0, 0(a0)");
+	} else if (Ty->Size == 2) {
+		// h = half word = 2字节
+		printLine("  lh a0, 0(a0)");
 	} else if (Ty->Size == 4) {
 		// w = word = 4字节
 		printLine("  lw a0, 0(a0)");
@@ -85,6 +88,9 @@ static void store(Type *Ty) {
 	printLine("  # 读取a0的值，写入到a1存放的地址");
 	if (Ty->Size == 1) {
 		printLine("  sb a0, 0(a1)");
+	} else if (Ty->Size == 2) {
+		// h === half word
+		printLine("  sh a0, 0(a1)");
 	} else if (Ty->Size == 4) {
 		printLine("  sw a0, 0(a1)");
 	} else {
@@ -466,6 +472,9 @@ static void storeGeneral(int Reg, int Offset, int Size) {
 	switch (Size) {
 	case 1:
 		printLine("  sb %s, %d(fp)", ArgReg[Reg++], Offset);
+		return;
+	case 2:
+		printLine("  sh %s, %d(fp)", ArgReg[Reg++], Offset);
 		return;
 	case 4:
 		printLine("  sw %s, %d(fp)", ArgReg[Reg++], Offset);

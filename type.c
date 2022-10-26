@@ -2,9 +2,10 @@
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 // 全局变量TyInt，用来将Type赋值为int类型
-Type *TyInt = &(Type){TY_INT, 4, 4};
-Type *TyChar = &(Type){TY_CHAR, 1, 1};
-Type *TyLong = &(Type){TY_LONG, 8, 8};
+Type *TyChar		= &(Type){TY_CHAR,	1, 1};
+Type *TyShort		= &(Type){TY_SHORT, 2, 2};
+Type *TyInt			= &(Type){TY_INT,		4, 4};
+Type *TyLong		= &(Type){TY_LONG,	8, 8};
 
 static Type *newType(TypeKind Kind, int Size, int Align) {
 	Type *Ty = calloc(1, sizeof(Type));
@@ -16,7 +17,8 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 
 // 判断Type是否为整型
 bool isInteger(Type *Ty) {
-	return Ty->Kind == TY_CHAR || Ty->Kind == TY_INT || Ty->Kind == TY_LONG; 
+	return Ty->Kind == TY_CHAR || Ty->Kind == TY_INT 
+		|| Ty->Kind == TY_LONG || Ty->Kind == TY_SHORT;
 }
 
 Type *copyType(Type *Ty) {
