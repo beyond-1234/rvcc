@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -81,7 +82,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind Kind; // 种类
   Token *Next;    // 指向下一终结符
-  int Val;        // 值
+  int64_t Val;        // 值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
 
@@ -117,12 +118,13 @@ struct Node {
 	Node *Args;				// 函数参数
 
 	Obj *Var;					// 存储ND_VAR的变量
-	int Val;					// 存储ND_NUM种类的值
+	int64_t Val;					// 存储ND_NUM种类的值
 };
 
 typedef enum {
 	TY_CHAR,	// char 字符型
 	TY_INT,		// int 整型
+	TY_LONG,	// long 长整型
 	TY_PTR,		// 指针
 	TY_FUNC,	// 函数
 	TY_ARRAY,	// 数组
@@ -159,6 +161,7 @@ struct Member {
 
 extern Type *TyChar;
 extern Type *TyInt;
+extern Type *TyLong;
 
 // 判断是否为整型
 bool isInteger(Type *TY);

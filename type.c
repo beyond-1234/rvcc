@@ -1,10 +1,10 @@
 #include "rvcc.h"
-#include <stdlib.h>
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 // 全局变量TyInt，用来将Type赋值为int类型
 Type *TyInt = &(Type){TY_INT, 4, 4};
 Type *TyChar = &(Type){TY_CHAR, 1, 1};
+Type *TyLong = &(Type){TY_LONG, 8, 8};
 
 static Type *newType(TypeKind Kind, int Size, int Align) {
 	Type *Ty = calloc(1, sizeof(Type));
@@ -15,7 +15,9 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 }
 
 // 判断Type是否为整型
-bool isInteger(Type *Ty) { return Ty->Kind == TY_CHAR || Ty->Kind == TY_INT; }
+bool isInteger(Type *Ty) {
+	return Ty->Kind == TY_CHAR || Ty->Kind == TY_INT || Ty->Kind == TY_LONG; 
+}
 
 Type *copyType(Type *Ty) {
 	Type *Ret = calloc(1, sizeof(Type));
@@ -92,7 +94,7 @@ void addType(Node *Nd) {
   case ND_LTEQ:
   case ND_NUM:
   case ND_FUNCALL: // 暂且将函数类型设置为整形
-    Nd->Ty = TyInt;
+    Nd->Ty = TyLong;
     return;
   // 将节点类型设为 变量的类型
   case ND_VAR:

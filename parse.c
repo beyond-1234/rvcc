@@ -41,7 +41,7 @@ Obj *Globals;		// 全局变量
 // 越往下优先级越高
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = "char" | "int" | structDecl | unionDecl
+// declspec = "char" | "int" | "long" | structDecl | unionDecl
 // declarator = "*"* ident typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -192,7 +192,7 @@ static char *getIdent(Token *Tok) {
 }
 
 // 新建一个数字二叉树叶子
-static Node *newNum(int Val, Token *Tok) {
+static Node *newNum(int64_t Val, Token *Tok) {
 	Node *Nod = newNode(ND_NUM, Tok);
 	Nod->Val = Val;
 	return Nod;
@@ -283,7 +283,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
 }
 
 // 获取数字
-static int getNumber(Token *Tok) {
+static int64_t getNumber(Token *Tok) {
 	if (Tok->Kind != TK_NUM) {
 		errorTok(Tok, "expected a number");
 	}
@@ -293,7 +293,7 @@ static int getNumber(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
 	return equal(Tok, "char") || equal(Tok, "int") 
-		|| equal(Tok, "struct") || equal(Tok, "union");
+		|| equal(Tok, "struct") || equal(Tok, "union") || equal(Tok, "long");
 }
 
 // 解析复合语句(代码块)
@@ -358,6 +358,12 @@ static Type *declspec(Token **Rest, Token *Tok) {
 	if (equal(Tok, "int")) {
 		*Rest = Tok->Next;
 		return TyInt;
+	}
+
+	// long
+	if (equal(Tok, "long")) {
+		*Rest = Tok->Next;
+		return TyLong;
 	}
 
 	// structDecl
