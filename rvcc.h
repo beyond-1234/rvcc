@@ -193,3 +193,6 @@ Obj *parse(Token *Tok);
 // 代码生成入口函数
 void codegen(Obj *Prog, FILE *Out);
 int alignTo(int N, int Align);
+
+// 如果出错了，打印文件名和行号
+#define unreachable() error("internal error at %s:%d", __FILE__, __LINE__);

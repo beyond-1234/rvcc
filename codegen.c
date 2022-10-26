@@ -59,6 +59,9 @@ static void load(Type *Ty) {
 	if (Ty->Size == 1) {
 		// b = byte = 1字节
 		printLine("  lb a0, 0(a0)");
+	} else if (Ty->Size == 4) {
+		// w = word = 4字节
+		printLine("  lw a0, 0(a0)");
 	} else {
 		// ld 的d=double word=8字节
 		printLine("  ld a0, 0(a0)");
@@ -82,6 +85,8 @@ static void store(Type *Ty) {
 	printLine("  # 读取a0的值，写入到a1存放的地址");
 	if (Ty->Size == 1) {
 		printLine("  sb a0, 0(a1)");
+	} else if (Ty->Size == 4) {
+		printLine("  sw a0, 0(a1)");
 	} else {
 		printLine("  sd a0, 0(a1)");
 	}
@@ -454,6 +459,25 @@ static void emitData(Obj *Prog) {
 	}
 }
 
+// 将整形寄存器的值存入栈中
+static void storeGeneral(int Reg, int Offset, int Size) {
+	printLine("  # 将%s寄存器的值存入%d(fp)的栈地址", ArgReg[Reg], Offset);
+
+	switch (Size) {
+	case 1:
+		printLine("  sb %s, %d(fp)", ArgReg[Reg++], Offset);
+		return;
+	case 4:
+		printLine("  sw %s, %d(fp)", ArgReg[Reg++], Offset);
+		return;
+	case 8:
+		printLine("  sd %s, %d(fp)", ArgReg[Reg++], Offset);
+		return;
+	}	
+
+	unreachable();
+}
+
 static void emitText(Obj *Prog) {
 
 	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
@@ -505,13 +529,7 @@ static void emitText(Obj *Prog) {
 		// 所以我们要将形参跟寄存器对应起来
 		int I = 0;
 		for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
-			printLine("  # 将%s寄存器的值存入%s的栈地址", ArgReg[1], Var->Name);
-			
-			if (Var->Ty->Size == 1) {
-				printLine("  sb %s, %d(fp)", ArgReg[I++], Var->Offset);
-			} else {
-				printLine("  sd %s, %d(fp)", ArgReg[I++], Var->Offset);
-			}
+			storeGeneral(I++, Var->Offset, Var->Ty->Size);
 		}
 
 		printLine("\n# =====%s段主体===============", Fn->Name);
