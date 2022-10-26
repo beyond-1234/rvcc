@@ -51,7 +51,7 @@ static void pop(char *Reg) {
 
 // 加载a0指向的值
 static void load(Type *Ty) {
-	if (Ty->Kind == TY_ARRAY) {
+	if (Ty->Kind == TY_ARRAY || Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
 		return;
 	}
 
@@ -68,6 +68,17 @@ static void load(Type *Ty) {
 // 将栈顶值(为一个地址)存入a0
 static void store(Type *Ty) {
 	pop("a1");
+
+	if (Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
+		printLine("  # 对%s进行赋值", Ty->Kind == TY_STRUCT ? "结构体" : "联合体");
+		for (int I = 0; I < Ty->Size; ++I) {
+			printLine("  lb a2, %d(a0)", I);
+			printLine("  sb a2, %d(a1)", I);
+		}
+
+		return;
+	}
+
 	printLine("  # 读取a0的值，写入到a1存放的地址");
 	if (Ty->Size == 1) {
 		printLine("  sb a0, 0(a1)");
