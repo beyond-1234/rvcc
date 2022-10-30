@@ -42,7 +42,7 @@ Obj *Globals;		// 全局变量
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
 // declspec = "char" | "int" | "long" | "short" | structDecl | unionDecl
-// declarator = "*"* ident typeSuffix
+// declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
 // param = declspec declarator
@@ -430,6 +430,20 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 	// 构建所有的(多重)指针
 	while(consume(&Tok, Tok, "*")) {
 		Ty = pointerTo(Ty);
+	}
+
+	// 解析嵌套类型
+	if (equal(Tok, "(")) {
+		// 记录(的位置
+		Token *Start = Tok;
+		Type Dummy = {};
+		// 是Tok前进到)后面的位置
+		declarator(&Tok, Start->Next, &Dummy);
+		Tok = skip(Tok, ")");
+		// 获取到括号后面的类型后缀，Ty为解析完的类型，Rest指向分号
+		Ty = typeSuffix(Rest, Tok, Ty);
+		// 解析Ty整体作为Base去构造，返回Type的值
+		return declarator(&Tok, Start->Next, Ty);
 	}
 
 	if(Tok->Kind != TK_IDENT) {
