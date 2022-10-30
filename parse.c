@@ -1001,7 +1001,14 @@ static Token *function(Token *Tok, Type *BaseTy) {
 	Type *Ty = declarator(&Tok, Tok, BaseTy);
 
 	Obj *Fn = newGVar(getIdent(Ty->Name), Ty);
-	Fn->isFunction = true;
+	Fn->IsFunction = true;
+	// 如果函数签名后面没有方法体，则为函数声明
+	Fn->IsDefinition = !consume(&Tok, Tok, ";");
+
+	// 判断是否仅为函数签名
+	if (!Fn->IsDefinition) {
+		return Tok;
+	}
 
   // 清空全局变量Locals
 	Locals = NULL;

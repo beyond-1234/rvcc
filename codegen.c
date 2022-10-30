@@ -114,7 +114,7 @@ static void assignLVarOffsets(Obj *Prog) {
 	
 	// 为每个函数计算其变量所用的栈空间
 	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
-		if (!Fn->isFunction) {
+		if (!Fn->IsFunction) {
 			continue;
 		}
 		int Offset = 0;
@@ -437,7 +437,7 @@ static void genStmt(Node *Nod) {
 // 生成全局变量的汇编代码
 static void emitData(Obj *Prog) {
 	for (Obj *Var = Prog; Var; Var = Var->Next) {
-		if (Var->isFunction) {
+		if (Var->IsFunction) {
 			continue;
 		}
 
@@ -490,7 +490,7 @@ static void storeGeneral(int Reg, int Offset, int Size) {
 static void emitText(Obj *Prog) {
 
 	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
-		if (!Fn->isFunction) {
+		if (!Fn->IsFunction || !Fn->IsDefinition) {
 			continue;
 		}
 
