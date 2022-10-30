@@ -2,6 +2,7 @@
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 // 全局变量TyInt，用来将Type赋值为int类型
+Type *TyVoid		= &(Type){TY_VOID,	1, 1};
 Type *TyChar		= &(Type){TY_CHAR,	1, 1};
 Type *TyShort		= &(Type){TY_SHORT, 2, 2};
 Type *TyInt			= &(Type){TY_INT,		4, 4};
@@ -124,6 +125,8 @@ void addType(Node *Nd) {
 		// 如果不存在基类，则不能解引用
     if (!Nd->LHS->Ty->Base)
       errorTok(Nd->Tok, "invalid pointer dereference");
+		if (Nd->LHS->Ty->Base->Kind == TY_VOID) 
+			errorTok(Nd->Tok, "dereference a void pointer");
     Nd->Ty = Nd->LHS->Ty->Base;
     return;
 	// node type is the type of last expression statement

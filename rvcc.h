@@ -123,6 +123,7 @@ struct Node {
 };
 
 typedef enum {
+	TY_VOID,	// void 类型
 	TY_CHAR,	// char 字符型
 	TY_INT,		// int 整型
 	TY_LONG,	// long 长整型
@@ -161,6 +162,7 @@ struct Member {
 	int Offset;				// 成员在结构体内的偏移量
 };
 
+extern Type *TyVoid;
 extern Type *TyChar;
 extern Type *TyInt;
 extern Type *TyLong;
