@@ -36,13 +36,15 @@ static Scope *Scp = &(Scope){};
 Obj *Locals;		// 局部变量
 Obj *Globals;		// 全局变量
 
+static bool isTypename(Token *Tok);
+
 // 方法前置声明 
 // 语法树规则
 // 越往下优先级越高
 // program = functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = "void" | "char" | "short" | "int" | "long"
-//            | structDecl | unionDecl
+// declspec = ("void" | "char" | "short" | "int" | "long"
+//             | structDecl | unionDecl)+
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -356,47 +358,73 @@ static void pushTagScope(Token *Tok, Type *Ty) {
 }
 
 static Type *declspec(Token **Rest, Token *Tok) {
-	// void
-	if (equal(Tok, "void")) {
-		*Rest = Tok->Next;
-		return TyVoid;
+
+	// 类型的组合
+	// 为什么要左移偶数位，比如遇到long long就会有两次1<<8，下面向加就合成为1<<9
+	enum {
+		VOID = 1 << 0,
+		CHAR = 1 << 2,
+		SHORT = 1 << 4,
+		INT = 1 << 6,
+		LONG = 1 << 8,
+		OTHER = 1 << 10,
+	};
+
+	Type *Ty = TyInt;
+	int Counter = 0; // 记录类型向加的数值
+	
+	while (isTypename(Tok)) {
+		if (equal(Tok, "struct") || equal(Tok, "union")) {
+			if (equal(Tok, "struct")) {
+				Ty = structDecl(&Tok, Tok->Next);
+			} else {
+				Ty = unionDecl(&Tok, Tok->Next);
+			}
+			Counter += OTHER;
+			continue;
+		}
+
+		if (equal(Tok, "void")) {
+			Counter += VOID;
+		} else if (equal(Tok, "char")) {
+			Counter += CHAR;
+		} else if (equal(Tok, "short")) {
+			Counter += SHORT;
+		} else if (equal(Tok, "int")) {
+			Counter += INT;
+		} else if (equal(Tok, "long")) {
+			Counter += LONG;
+		} else {
+			unreachable();
+		}
+
+		switch (Counter) {
+			case VOID:
+				Ty = TyVoid;
+				break;
+			case CHAR:
+				Ty = TyChar;
+				break;
+			case SHORT:
+			case SHORT + INT:
+				Ty = TyShort;
+				break;
+			case INT:
+				Ty = TyInt;
+				break;
+			case LONG:
+			case LONG + INT:
+				Ty = TyLong;
+				break;
+			default:
+				errorTok(Tok, "invalid type");
+		}
+
+		Tok = Tok->Next;
 	}
 
-	// char
-	if (equal(Tok, "char")) {
-		*Rest = Tok->Next;
-		return TyChar;
-	}
-
-	// int
-	if (equal(Tok, "int")) {
-		*Rest = Tok->Next;
-		return TyInt;
-	}
-
-	// long
-	if (equal(Tok, "long")) {
-		*Rest = Tok->Next;
-		return TyLong;
-	}
-
-	// short
-	if (equal(Tok, "short")) {
-		*Rest = Tok->Next;
-		return TyShort;
-	}
-
-	// structDecl
-	if (equal(Tok, "struct")) {
-		return structDecl(Rest, Tok->Next);
-	}
-
-	// unionDecl
-	if (equal(Tok, "union")) {
-		return unionDecl(Rest, Tok->Next);
-	}
-	errorTok(Tok, "typename expected");
-	return NULL;
+	*Rest = Tok;
+	return Ty;
 }
 
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
