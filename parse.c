@@ -1,5 +1,6 @@
 #include "rvcc.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 // 局部和全局变量或是typedef的域
 typedef struct VarScope VarScope;
@@ -81,10 +82,13 @@ static bool isTypename(Token *Tok);
 // postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
 //         | ident funcArgs?
 //         | str
 //         | num
+// typeName = declspec abstractDeclarator
+// abstractDeclarator = "*"* ("(" abstractDeclarator ")")? typeSuffix
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
@@ -559,6 +563,39 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 	Ty->Name = Tok;
 	return Ty;
 }
+
+static Type *abstractDeclarator(Token **Rest, Token *Tok, Type *Ty) {
+	// "*"*
+	while (equal(Tok, "*")) {
+		Ty = pointerTo(Ty);
+		Tok = Tok->Next;
+	}
+
+	// ("(" abstractDeclarator ")")?
+	if (equal(Tok, "(")) {
+		Token *Start = Tok;
+		Type Dummy = {};
+		// 使tok前进到) 后面的位置
+		abstractDeclarator(&Tok, Start->Next, &Dummy);
+		Tok = skip(Tok, ")");
+		// 获取到括号后面的类型后缀，Ty为解析完的类型，Rest指向分号
+		Ty = typeSuffix(Rest, Tok, Ty);
+		// 解析Ty整体作为Base去构造，返回Type的值
+		return abstractDeclarator(&Tok, Start->Next, Ty);
+	}
+
+	// type suffix
+	return typeSuffix(Rest, Tok, Ty);
+}
+
+// 获取类型的相关信息
+static Type *typename(Token **Rest, Token *Tok) {
+	// declspec
+	Type *Ty = declspec(&Tok, Tok, NULL);
+	// abstractDeclarator
+	return abstractDeclarator(Rest, Tok, Ty);
+}
+
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy) {
 
   Node Head = {};
@@ -1028,6 +1065,7 @@ static Obj *newStringLiteral(char *Str, Type *Ty) {
 }
 
 static Node *primary(Token **Rest, Token *Tok) {
+	Token *Start = Tok;
 
 	// if is statement expression
 	// ({ statement })
@@ -1045,6 +1083,13 @@ static Node *primary(Token **Rest, Token *Tok) {
 		Node *Nod = expr(&Tok, Tok->Next);
 		*Rest = skip(Tok, ")");
 		return Nod;
+	}
+
+	// sizeof "(" typeName ")"
+	if (equal(Tok, "sizeof") && equal(Tok->Next, "(") && isTypename(Tok->Next->Next)) {
+		Type *Ty = typename(&Tok, Tok->Next->Next);
+		*Rest = skip(Tok, ")");
+		return newNum(Ty->Size, Start);
 	}
 
 	if(equal(Tok, "sizeof")) {
