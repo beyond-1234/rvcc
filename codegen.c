@@ -273,22 +273,24 @@ static void genExpr(Node *Nod) {
 	pop("a1");
 
 	// 生成各个二叉树节点
+	// 判断是否是long类型或指针类型，这两种类型用64位计算，其他类型32位计算便可以
+	char *Suffix = Nod->LHS->Ty->Kind == TY_LONG || Nod->LHS->Ty->Base ? "" : "w";
 	switch(Nod->Kind) {
 		case ND_ADD: 
 			printLine("  # a0 + a1，结果写入a0");
-      printLine("  add a0, a0, a1");
+      printLine("  add%s a0, a0, a1", Suffix);
 			return;
 		case ND_SUB: 
 			printLine("  # a0 - a1，结果写入a0");
-      printLine("  sub a0, a0, a1");
+      printLine("  sub%s a0, a0, a1", Suffix);
 			return;
 		case ND_MUL: 
 			printLine("  # a0 * a1，结果写入a0");
-      printLine("  mul a0, a0, a1");
+      printLine("  mul%s a0, a0, a1", Suffix);
 			return;
 		case ND_DIV: 
 			printLine("  # a0 / a1，结果写入a0");
-      printLine("  div a0, a0, a1");
+      printLine("  div%s a0, a0, a1", Suffix);
 			return;
 		// RICSV 没有相等性指令
 		// 相等性需要两条指令来判断
