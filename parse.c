@@ -73,8 +73,9 @@ static bool isTypename(Token *Tok);
 // equality = 关系运算符的比较结果
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
-// mul = 多个基数(primary)相乘除得到的
-// unary = ("+" | "-" | "*" | "&") unary | postfix
+// mul = cast ("*" cast | "/" cast)*
+// cast = "(" typeName ")" cast | unary
+// unary = ("+" | "-" | "*" | "&") cast | postfix
 // structMembers = (declspec declarator (","  declarator)* ";")*
 // structDecl = structUnionDecl
 // unionDecl = structUnionDecl
@@ -102,6 +103,7 @@ static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
+static Node *cast(Token **Rest, Token *Tok);
 static Type *structDecl(Token **Rest, Token *Tok);
 static Type *unionDecl(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
@@ -157,6 +159,18 @@ static Node *newNode(NodeKind Kind, Token *Tok) {
 	Node *Nod = calloc(1, sizeof(Node));
 	Nod->Kind = Kind;
 	Nod->Tok = Tok;
+	return Nod;
+}
+
+// 新建一个转换
+static Node *newCast(Node *Expr, Type *Ty) {
+	addType(Expr);
+
+	Node *Nod = calloc(1, sizeof(Node));
+	Nod->Kind = ND_CAST;
+	Nod->Tok = Expr->Tok;
+	Nod->LHS = Expr;
+	Nod->Ty = copyType(Ty);
 	return Nod;
 }
 
@@ -830,18 +844,19 @@ static Node *add(Token **Rest, Token *Tok) {
 }
 
 static Node *mul(Token **Rest, Token *Tok) {
-
-	Node *Nod = unary(&Tok, Tok);
+	// cast
+	Node *Nod = cast(&Tok, Tok);
 
 	while(true) {
 		Token *Start = Tok;
+
 		if(equal(Tok, "*")) {
-			Nod = newBinary(ND_MUL, Nod, unary(&Tok, Tok->Next), Start);
+			Nod = newBinary(ND_MUL, Nod, cast(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "/")) {
-			Nod = newBinary(ND_DIV, Nod, unary(&Tok, Tok->Next), Start);
+			Nod = newBinary(ND_DIV, Nod, cast(&Tok, Tok->Next), Start);
 			continue;
 		}
 
@@ -850,26 +865,42 @@ static Node *mul(Token **Rest, Token *Tok) {
 	}
 }
 
+static Node *cast(Token **Rest, Token *Tok) {
+	// cast = "(" typeName ")" cast
+	if (equal(Tok, "(") && isTypename(Tok->Next)) {
+		Token *Start = Tok;
+		Type *Ty = typename(&Tok, Tok->Next);
+		Tok = skip(Tok, ")");
+		// 解析嵌套类型
+		Node *Nod = newCast(cast(Rest, Tok), Ty);
+		Nod->Tok = Start;
+		return Nod;
+	}
+
+	// unary
+	return unary(Rest, Tok);
+}
+
 static Node *unary(Token **Rest, Token *Tok) {
 
 	// 一元运算符可以看作生成一个单叉树
 	if(equal(Tok, "+")) {
-		return unary(Rest, Tok->Next);
+		return cast(Rest, Tok->Next);
 	}
 
 	// 对于负号，我们仅将数字后面的第一个负号看作减号，之后如果还有负号则看作一元负号
 	if(equal(Tok, "-")) {
-		return newUnary(ND_NEG, unary(Rest, Tok->Next), Tok);
+		return newUnary(ND_NEG, cast(Rest, Tok->Next), Tok);
 	}
 
 	// 取地址
 	if(equal(Tok, "&")) {
-		return newUnary(ND_ADDR, unary(Rest, Tok->Next), Tok);
+		return newUnary(ND_ADDR, cast(Rest, Tok->Next), Tok);
 	}
 
 	// 解引用
 	if(equal(Tok, "*")) {
-		return newUnary(ND_DEREF, unary(Rest, Tok->Next), Tok);
+		return newUnary(ND_DEREF, cast(Rest, Tok->Next), Tok);
 	}
 
 	return postfix(Rest, Tok);

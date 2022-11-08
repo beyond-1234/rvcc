@@ -24,6 +24,64 @@ static void printLine(char *Fmt, ...) {
 	fprintf(OutputFile, "\n");
 }
 
+
+// 类型枚举
+enum { I8, I16, I32, I64 };
+
+// 获取类型对应的枚举值
+static int getTypeId(Type *Ty) {
+	switch (Ty->Kind) {
+		case TY_CHAR:
+			return I8;
+		case TY_SHORT:
+			return I16;
+		case TY_INT:
+			return I32;
+		default:
+			return I64;
+	}
+}
+
+// 类型映射表
+// 先逻辑左移N位，再算术右移N位，就实现了将64位有符号数转换为64-N位的有符号数
+// 只需要大类型转小类型
+static char i64i8[] =		"  # 转换为i8类型\n"
+												"  slli a0, a0, 56\n"
+												"  srai a0, a0, 56";
+static char i64i16[] =	"  # 转换为i16类型\n"
+												"  slli a0, a0, 48\n"
+												"  srai a0, a0, 48";
+static char i64i32[] =	"  # 转换为i32类型\n"
+												"  slli a0, a0, 32\n"
+												"  srai a0, a0, 32";
+// 所有类型转换表
+static char *castTable[10][10] = {
+    // clang-format off
+
+    // 被映射到
+    // {i8,  i16,    i32,    i64}
+    {NULL,   NULL,   NULL,   NULL}, // 从i8转换
+    {i64i8,  NULL,   NULL,   NULL}, // 从i16转换
+    {i64i8,  i64i16, NULL,   NULL}, // 从i32转换
+    {i64i8,  i64i16, i64i32, NULL}, // 从i64转换
+
+    // clang-format on
+};
+
+static void cast(Type *From, Type *To) {
+	if (To->Kind == TY_VOID) {
+		return;
+	}
+
+	int T1 = getTypeId(From);
+	int T2 = getTypeId(To);
+	if (castTable[T1][T2]) {
+		printLine("  # 转换函数");
+		printLine("%s", castTable[T1][T2]);
+	}
+}
+
+
 // 代码段计数
 static int count(void) {
 	static int I = 1;
@@ -238,6 +296,10 @@ static void genExpr(Node *Nod) {
 		case ND_COMMA:
 			genExpr(Nod->LHS);
 			genExpr(Nod->RHS);
+			return;
+		case ND_CAST:
+			genExpr(Nod->LHS);
+			cast(Nod->LHS->Ty, Nod->Ty);
 			return;
 		case ND_FUNCALL: {
 			// 记录参数个数

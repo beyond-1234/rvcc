@@ -26,6 +26,7 @@ typedef enum {
 	ND_EQ,
 	ND_NEQ,
 	ND_NUM,
+	ND_CAST,			// 类型转换
 	ND_ASSIGN,		// 赋值
 	ND_COMMA,		  // 逗号
 	ND_MEMBER,		// 结构体成员
