@@ -196,6 +196,9 @@ bool consume(Token **Rest, Token *Tok, char *Str);
 // 词法分析函数
 Token *tokenizeFile(char *Path);
 
+// 类型转换，将表达式的值转换为另一种类型
+Node *newCast(Node *Expr, Type *Ty);
+
 // 语法分析入口函数
 Obj *parse(Token *Tok);
 

@@ -1,4 +1,5 @@
 #include "rvcc.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -162,18 +163,6 @@ static Node *newNode(NodeKind Kind, Token *Tok) {
 	return Nod;
 }
 
-// 新建一个转换
-static Node *newCast(Node *Expr, Type *Ty) {
-	addType(Expr);
-
-	Node *Nod = calloc(1, sizeof(Node));
-	Nod->Kind = ND_CAST;
-	Nod->Tok = Expr->Tok;
-	Nod->LHS = Expr;
-	Nod->Ty = copyType(Ty);
-	return Nod;
-}
-
 // 将变量存入当前域中
 static VarScope *pushScope(char *Name) {
 	VarScope *S = calloc(1, sizeof(VarScope));
@@ -242,6 +231,14 @@ static Node *newNum(int64_t Val, Token *Tok) {
 	return Nod;
 }
 
+// 新建一个长整型节点
+static Node *newLong(int64_t Val, Token *Tok) {
+	Node *Nod = newNode(ND_NUM, Tok);
+	Nod->Val = Val;
+	Nod->Ty = TyLong;
+	return Nod;
+}
+
 // 新建一个变量叶子节点
 static Node *newVarNode(Obj *Var, Token *Tok) {
 	Node *Nod = newNode(ND_VAR, Tok);
@@ -261,6 +258,18 @@ static Node *newBinary(NodeKind Kind, Node *LHS, Node *RHS, Token *Tok) {
 	Node *Nod = newNode(Kind, Tok);
 	Nod->LHS = LHS;
 	Nod->RHS = RHS;
+	return Nod;
+}
+
+// 新转换
+Node *newCast(Node *Expr, Type *Ty) {
+	addType(Expr);
+
+	Node *Nod = calloc(1, sizeof(Node));
+	Nod->Kind = ND_CAST;
+	Nod->Tok = Expr->Tok;
+	Nod->LHS = Expr;
+	Nod->Ty = copyType(Ty);
 	return Nod;
 }
 
@@ -290,7 +299,8 @@ static Node *newAdd(Node *LHS, Node *RHS, Token *Tok) {
 	// ptr + num
 	// 指针加法 ptr+1 指的是+一个元素的空间
 	// 所以需要一个 *8 的操作即 *一个元素大小 的操作
-	RHS = newBinary(ND_MUL, RHS, newNum(LHS->Ty->Base->Size, Tok), Tok);
+	// 指针用long类型存储
+	RHS = newBinary(ND_MUL, RHS, newLong(LHS->Ty->Base->Size, Tok), Tok);
 	return newBinary(ND_ADD, LHS, RHS, Tok);
 }
 
@@ -307,7 +317,8 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
 
 	// ptr - num
   if (LHS->Ty->Base && isInteger(RHS->Ty)) {
-    RHS = newBinary(ND_MUL, RHS, newNum(LHS->Ty->Base->Size, Tok), Tok);
+		// 指针用long类型存储
+    RHS = newBinary(ND_MUL, RHS, newLong(LHS->Ty->Base->Size, Tok), Tok);
     addType(RHS);
     Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
     // 节点类型为指针
