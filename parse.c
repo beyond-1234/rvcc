@@ -45,6 +45,9 @@ static Scope *Scp = &(Scope){};
 Obj *Locals;		// 局部变量
 Obj *Globals;		// 全局变量
 
+// 当前正在解析的函数
+static Obj *CurrentFn;
+
 static bool isTypename(Token *Tok);
 
 // 方法前置声明 
@@ -667,8 +670,12 @@ static Node *stmt(Token **Rest, Token *Tok) {
 	// return expr ;
 	if(equal(Tok, "return")) {
 		Node *Nod = newNode(ND_RETURN, Tok);
-		Nod->LHS = expr(&Tok, Tok->Next);
+		Node *Exp = expr(&Tok, Tok->Next);
 		*Rest = skip(Tok, ";");
+
+		addType(Exp);
+		// 对于返回值的类型进行类型转换
+		Nod->LHS = newCast(Exp, CurrentFn->Ty->ReturnTy);
 		return Nod;
 	}
 
@@ -1231,6 +1238,7 @@ static Token *function(Token *Tok, Type *BaseTy) {
 		return Tok;
 	}
 
+	CurrentFn = Fn;
   // 清空全局变量Locals
 	Locals = NULL;
 
