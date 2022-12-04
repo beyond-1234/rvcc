@@ -1,7 +1,4 @@
 #include "rvcc.h"
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 // 局部和全局变量或是typedef的域
 typedef struct VarScope VarScope;
@@ -55,7 +52,7 @@ static bool isTypename(Token *Tok);
 // 越往下优先级越高
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
-// declspec = ("void" | "char" | "short" | "int" | "long"
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef"
 //             | structDecl | unionDecl | typedefName)+
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
@@ -351,7 +348,9 @@ static int64_t getNumber(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
 	static char *Kw[] = {
-      "void", "char", "short", "int", "long", "struct", "union", "typedef"
+      "void", "_Bool", "char", "short", 
+			"int", "long", "struct", "union", 
+			"typedef"
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -429,12 +428,13 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 	// 类型的组合
 	// 为什么要左移偶数位，比如遇到long long就会有两次1<<8，下面向加就合成为1<<9
 	enum {
-		VOID = 1 << 0,
-		CHAR = 1 << 2,
-		SHORT = 1 << 4,
-		INT = 1 << 6,
-		LONG = 1 << 8,
-		OTHER = 1 << 10,
+		VOID  = 1 << 0,
+		BOOL  = 1 << 2,
+		CHAR  = 1 << 4,
+		SHORT = 1 << 6,
+		INT   = 1 << 8,
+		LONG  = 1 << 10,
+		OTHER = 1 << 12,
 	};
 
 	Type *Ty = TyInt;
@@ -477,6 +477,8 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 
 		if (equal(Tok, "void")) {
 			Counter += VOID;
+		} else if (equal(Tok, "_Bool")) {
+			Counter += BOOL;
 		} else if (equal(Tok, "char")) {
 			Counter += CHAR;
 		} else if (equal(Tok, "short")) {
@@ -492,6 +494,9 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 		switch (Counter) {
 			case VOID:
 				Ty = TyVoid;
+				break;
+			case BOOL:
+				Ty = TyBool;
 				break;
 			case CHAR:
 				Ty = TyChar;

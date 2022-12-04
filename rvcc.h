@@ -127,6 +127,7 @@ struct Node {
 typedef enum {
 	TY_VOID,	// void 类型
 	TY_CHAR,	// char 字符型
+	TY_BOOL,	// _Bool 类型
 	TY_INT,		// int 整型
 	TY_LONG,	// long 长整型
 	TY_SHORT,	// short 短整型
@@ -165,6 +166,7 @@ struct Member {
 };
 
 extern Type *TyVoid;
+extern Type *TyBool;
 extern Type *TyChar;
 extern Type *TyInt;
 extern Type *TyLong;

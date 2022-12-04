@@ -73,6 +73,12 @@ static void cast(Type *From, Type *To) {
 		return;
 	}
 
+	if (To->Kind == TY_BOOL) {
+		printLine("  # 转为Bool类型: 为0置0，非0置1");
+		printLine("  snez a0, a0");
+		return;
+	}
+
 	int T1 = getTypeId(From);
 	int T2 = getTypeId(To);
 	if (castTable[T1][T2]) {
