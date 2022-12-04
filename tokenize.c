@@ -1,4 +1,5 @@
 #include "rvcc.h"
+#include <string.h>
 
 static char *CurrentFileName;
 static char *CurrentInput;
@@ -264,6 +265,32 @@ static char *stringLiteralEnd(char *P) {
   return P;
 }
 
+static Token *readCharLiteral(char *Start) {
+	char *P = Start + 1;
+	// 解析字符为 \0 的情况
+	if (*P == '\0')
+		errorAt(Start, "unclosed char literal");
+
+	// 解析字符
+	char C;
+	// 转义
+	if (*P == '\\')
+		C = readEscapedChar(&P, P + 1);
+	else
+		C = *P++;
+	
+	// strchr返回以 ' 开头的字符串，若无则为NULL
+	char *End = strchr(P, '\'');
+	if (!End) {
+		errorAt(P, "unclosed char literal");
+	}
+
+	// 构造一个NUM的终结符，值为C的数值
+	Token *Tok = newToken(TK_NUM, Start, End + 1);
+	Tok->Val = C;
+	return Tok;
+}
+
 static Token *readStringLiteral(char *Start) {
   // 读取到字符串字面量的右引号
   char *End = stringLiteralEnd(Start + 1);
@@ -356,6 +383,13 @@ Token *tokenize(char *FileName, char *P) {
 
 		if (*P == '"') {
 			Cur->Next = readStringLiteral(P);
+			Cur = Cur->Next;
+			P += Cur->Len;
+			continue;
+		}
+
+		if (*P == '\'') {
+			Cur->Next = readCharLiteral(P);
 			Cur = Cur->Next;
 			P += Cur->Len;
 			continue;
