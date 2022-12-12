@@ -131,6 +131,7 @@ typedef enum {
 	TY_INT,		// int 整型
 	TY_LONG,	// long 长整型
 	TY_SHORT,	// short 短整型
+	TY_ENUM,	// 枚举类型
 	TY_PTR,		// 指针
 	TY_FUNC,	// 函数
 	TY_ARRAY,	// 数组
@@ -169,6 +170,7 @@ extern Type *TyVoid;
 extern Type *TyBool;
 extern Type *TyChar;
 extern Type *TyInt;
+extern Type *TyEnum;
 extern Type *TyLong;
 extern Type *TyShort;
 
@@ -178,10 +180,13 @@ bool isInteger(Type *TY);
 void addType(Node *Nod);
 // 构建一个指针类型，并指向基类
 Type *pointerTo(Type *Base);
+// 枚举类型
+Type *enumType(void);
 // 函数类型
 Type *funcType(Type *ReturnTy);
 // 复制类型
 Type *copyType(Type *Ty);
+// 数组类型
 Type *arrayOf(Type *base, int Size);
 // 字符串解析
 char *format(char *Fmt, ...);

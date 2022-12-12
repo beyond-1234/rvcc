@@ -148,7 +148,7 @@ static bool isKeyword(Token *T) {
 		"return", "if", "else", "for", 
 		"while", "int", "sizeof", "char", 
 		"struct", "union", "long", "short", 
-		"void", "typedef", "_Bool"
+		"void", "typedef", "_Bool", "enum"
 	};	
 
 	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {

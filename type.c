@@ -20,7 +20,7 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 // 判断Type是否为整型
 bool isInteger(Type *Ty) {
 	return Ty->Kind == TY_BOOL || Ty->Kind == TY_CHAR || Ty->Kind == TY_INT 
-		|| Ty->Kind == TY_LONG || Ty->Kind == TY_SHORT;
+		|| Ty->Kind == TY_LONG || Ty->Kind == TY_SHORT || Ty->Kind == TY_ENUM;
 }
 
 Type *copyType(Type *Ty) {
@@ -34,6 +34,11 @@ Type *pointerTo(Type *Base) {
 	Type *Ty = newType(TY_PTR, 8, 8);
   Ty->Base = Base;
   return Ty;
+}
+
+// 构造枚举类型
+Type *enumType(void) {
+	return newType(TY_ENUM, 4, 4);
 }
 
 // 函数类型，并赋返回类型
