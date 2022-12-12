@@ -792,8 +792,17 @@ static Node *stmt(Token **Rest, Token *Tok) {
 
 		Tok = skip(Tok->Next, "(");
 
-		// for 的初始化语句
-		Nod->Init = exprStmt(&Tok, Tok);
+		// 进入for循环域以便支持局部的循环变量
+		enterScope();
+
+		if (isTypename(Tok)) {
+			// 初始化循环变量
+			Type *BaseTy = declspec(&Tok,	Tok, NULL);
+			Nod->Init = declaration(&Tok, Tok, BaseTy);
+		} else {
+			// for 的初始化语句
+			Nod->Init = exprStmt(&Tok, Tok);
+		}
 
 		// for 的条件语句
 		if (!equal(Tok, ";")) {
@@ -809,6 +818,9 @@ static Node *stmt(Token **Rest, Token *Tok) {
 
 		// for 循环代码块
 		Nod->Then = stmt(Rest, Tok);
+
+		// 离开for循环域
+		leaveScope();
 
 		return Nod;
 	}
