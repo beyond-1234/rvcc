@@ -58,6 +58,7 @@ struct Obj {
 	int Offset;				// fp的偏移量
 	bool IsFunction;	// 函数或全局变量
 	bool IsDefinition;// 是否为函数签名
+	bool IsStatic;		// 是否为文件域内的
 	Obj *Params;			// 函数形参
 
 	// 全局变量

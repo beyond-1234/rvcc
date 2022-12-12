@@ -34,7 +34,10 @@ struct Scope {
 
 // 变量属性
 typedef struct {
+	// 是否为类型别名
 	bool IsTypedef;
+	// 是否为文件域内
+	bool IsStatic;
 } VarAttr;
 
 // 指向所有域的链表
@@ -55,8 +58,7 @@ static bool isTypename(Token *Tok);
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
-//             | structDecl | unionDecl | typedefName)+
+//             | "typedef" | "static"
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
@@ -358,7 +360,7 @@ static bool isTypename(Token *Tok) {
 	static char *Kw[] = {
       "void", "_Bool", "char", "short", 
 			"int", "long", "struct", "union", 
-			"typedef", "enum"
+			"typedef", "enum", "static"
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -451,12 +453,22 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 	while (isTypename(Tok)) {
 
 		// 处理typedef关键字
-		if (equal(Tok, "typedef")) {
+		if (equal(Tok, "typedef") || equal(Tok, "static")) {
 			if (!Attr) {
 				errorTok(Tok, "storage class specifier is not allowed in the context");
 			}
 
-			Attr->IsTypedef = true;
+			if (equal(Tok, "typedef")) {
+				Attr->IsTypedef = true;
+			} else {
+				Attr->IsStatic = true;
+			}
+
+			// typedef 与 static 不该一起使用
+			if (Attr->IsStatic && Attr->IsTypedef) {
+				errorTok(Tok, "typedef and static my not be used together");
+			}
+
 			Tok = Tok->Next;
 			continue;
 		}
@@ -1334,13 +1346,14 @@ static void createParamLVars(Type *Param) {
 	}
 }
 
-static Token *function(Token *Tok, Type *BaseTy) {
+static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 	Type *Ty = declarator(&Tok, Tok, BaseTy);
 
 	Obj *Fn = newGVar(getIdent(Ty->Name), Ty);
 	Fn->IsFunction = true;
 	// 如果函数签名后面没有方法体，则为函数声明
 	Fn->IsDefinition = !consume(&Tok, Tok, ";");
+	Fn->IsStatic = Attr->IsStatic;
 
 	// 判断是否仅为函数签名
 	if (!Fn->IsDefinition) {
@@ -1410,7 +1423,7 @@ Obj *parse(Token *Tok){
 
 		// 函数
 		if (isFunction(Tok)) {
-			Tok = function(Tok, Basety);
+			Tok = function(Tok, Basety, &Attr);
 			continue;
 		}
 

@@ -564,9 +564,15 @@ static void emitText(Obj *Prog) {
 			continue;
 		}
 
-		// 为每一个方法声明一个全局方法段
-		printLine("  # 定义全局%s段", Fn->Name);
-		printLine("  .globl %s", Fn->Name);
+		if (Fn->IsStatic) {
+			// 定义局部%s函数段
+			printLine("  # 定义局部%s段", Fn->Name);
+			printLine("  .local %s", Fn->Name);
+		} else {
+			// 为每一个方法声明一个全局方法段
+			printLine("  # 定义全局%s段", Fn->Name);
+			printLine("  .globl %s", Fn->Name);
+		}
 
 		printLine("  # 代码段标签");
 		printLine("  .text");
