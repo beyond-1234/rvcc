@@ -132,7 +132,8 @@ static bool startsWith(char *P, char *Str) {
 // 读取符号的长度
 static int readPunct(char *P) {
 	static char *KW[] = {"==", "!=", "<=", ">=", "->",
-											 "+=", "-=", "*=", "/="};
+											 "+=", "-=", "*=", "/=",
+											 "++", "--"};
 
 	for (int I = 0; I < sizeof(KW) / sizeof(*KW); I++) {
 		if (startsWith(P, KW[I])) {
