@@ -52,7 +52,7 @@ static Obj *CurrentFn;
 
 static bool isTypename(Token *Tok);
 
-// 方法前置声明 
+// 方法前置声明
 // 语法树规则
 // 越往下优先级越高
 // program = (typedef | functionDefinition* | global-variable)*
@@ -79,7 +79,8 @@ static bool isTypename(Token *Tok);
 //			exprStmt(表达式语句) 后续会支持其他类型的语句
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
-// assign = equality 相等比较结果
+// assign = equality (assignOp assign)?
+// assignOp = "=" | "+=" | "-=" | "*=" | "/="
 // equality = 关系运算符的比较结果
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
@@ -113,6 +114,8 @@ static Node *assign(Token **Rest, Token *Tok);
 static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
+static Node *newAdd(Node *LHS, Node *RHS, Token *Tok);
+static Node *newSub(Node *LHS, Node *RHS, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
 static Node *cast(Token **Rest, Token *Tok);
 static Type *structDecl(Token **Rest, Token *Tok);
@@ -358,8 +361,8 @@ static int64_t getNumber(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
 	static char *Kw[] = {
-      "void", "_Bool", "char", "short", 
-			"int", "long", "struct", "union", 
+      "void", "_Bool", "char", "short",
+			"int", "long", "struct", "union",
 			"typedef", "enum", "static"
   };
 
@@ -415,7 +418,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 
 	// 结束当前域
 	leaveScope();
-	
+
 	// Nod的Body中存储了{}内解析的语句
 	// Body指的是当前{}中的所有语句构成的链表
 	// } 在这里直接被忽略，没有进入语法树的构建
@@ -449,7 +452,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 
 	Type *Ty = TyInt;
 	int Counter = 0; // 记录类型向加的数值
-	
+
 	while (isTypename(Tok)) {
 
 		// 处理typedef关键字
@@ -565,7 +568,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok) {
 		Type *Ty = findTag(Tag);
 		if (!Ty) {
 			errorTok(Tag, "unknown enum type");
-		} 
+		}
 		if (Ty->Kind != TY_ENUM) {
 			errorTok(Tag, "not an enum tag");
 		}
@@ -848,7 +851,7 @@ static Node *stmt(Token **Rest, Token *Tok) {
 	if(equal(Tok, "{")) {
 		return compoundStmt(Rest, Tok->Next);
 	}
-	
+
 	// exprStmt
 	return exprStmt(Rest, Tok);
 }
@@ -880,6 +883,32 @@ static Node *expr(Token **Rest, Token *Tok) {
   return Nd;
 }
 
+// A op= B ===> TMP = &A, *TMP = *TMP op B
+static Node *toAssign(Node *Binary) {
+	// A
+	addType(Binary->LHS);
+	// B
+	addType(Binary->RHS);
+	Token *Tok = Binary->Tok;
+
+	// TMP
+	Obj *Var = newLVar("", pointerTo(Binary->LHS->Ty));
+
+	// TMP = &A
+	Node *Expr1 = newBinary(ND_ASSIGN, newVarNode(Var, Tok),
+												newUnary(ND_ADDR, Binary->LHS, Tok), Tok);
+
+	// *TMP = *TMP op B
+	Node *Expr2 = newBinary(
+			ND_ASSIGN, newUnary(ND_DEREF, newVarNode(Var, Tok), Tok),
+			newBinary(Binary->Kind, newUnary(ND_DEREF, newVarNode(Var, Tok), Tok),
+								Binary->RHS, Tok),
+			Tok);
+
+	// TMP = &A, *TMP = *TMP op B
+	return newBinary(ND_COMMA, Expr1, Expr2, Tok);
+}
+
 static Node *assign(Token **Rest, Token *Tok) {
 	Node *Nod = equality(&Tok, Tok);
 
@@ -887,6 +916,16 @@ static Node *assign(Token **Rest, Token *Tok) {
 	if(equal(Tok, "=")) {
 		return Nod = newBinary(ND_ASSIGN, Nod, assign(Rest, Tok->Next), Tok);
 	}
+
+	// += -= *= /=
+	if (equal(Tok, "+="))
+		return toAssign(newAdd(Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "-="))
+		return toAssign(newSub(Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "*="))
+		return toAssign(newBinary(ND_MUL, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "/="))
+		return toAssign(newBinary(ND_DIV, Nod, assign(Rest, Tok->Next), Tok));
 
 	*Rest = Tok;
 	return Nod;
@@ -1179,7 +1218,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
 
 	// 查找函数名
 	VarScope *S = findVar(Start);
-	
+
 	if (!S) {
 		errorTok(Start, "implicit declaration of a function");
 	}
@@ -1335,7 +1374,7 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy) {
 
 	while (!consume(&Tok, Tok, ";")) {
 		if (!First) {
-			Tok = skip(Tok, ","); 
+			Tok = skip(Tok, ",");
 		}
 		First = false;
 
@@ -1343,7 +1382,7 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy) {
 		// 类型别名的变量名存入变量域中，并设置类型
 		pushScope(getIdent(Ty->Name))->Typedef = Ty;
 	}
-	
+
 	return Tok;
 }
 
@@ -1392,7 +1431,7 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 	return Tok;
 }
 
-// 构造全局变量 
+// 构造全局变量
 static Token *globalVariable(Token *Tok, Type *BaseTy) {
 	bool First = true;
 

@@ -34,14 +34,14 @@ static void verrorAt(int LineNo, char *Loc, char *Fmt, va_list VA) {
 	while (CurrentInput < Line && Line[-1] != '\n') {
 		Line--;
 	}
-	
+
 	// End goes to the ending of the line which is \n
 	char *End = Loc;
 	while (*End != '\n') {
 		End++;
 	}
 
-	// print filename:line 
+	// print filename:line
 	// Indent records how many words printed
 	int Indent = fprintf(stderr, "%s:%d ", CurrentFileName, LineNo);
 	fprintf(stderr, "%.*s\n", (int)(End - Line), Line);
@@ -131,7 +131,8 @@ static bool startsWith(char *P, char *Str) {
 
 // 读取符号的长度
 static int readPunct(char *P) {
-	static char *KW[] = {"==", "!=", "<=", ">=", "->"};
+	static char *KW[] = {"==", "!=", "<=", ">=", "->",
+											 "+=", "-=", "*=", "/="};
 
 	for (int I = 0; I < sizeof(KW) / sizeof(*KW); I++) {
 		if (startsWith(P, KW[I])) {
@@ -145,12 +146,12 @@ static int readPunct(char *P) {
 
 static bool isKeyword(Token *T) {
 	static char *Keywords[] = {
-		"return", "if", "else", "for", 
-		"while", "int", "sizeof", "char", 
-		"struct", "union", "long", "short", 
+		"return", "if", "else", "for",
+		"while", "int", "sizeof", "char",
+		"struct", "union", "long", "short",
 		"void", "typedef", "_Bool", "enum",
 		"static"
-	};	
+	};
 
 	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {
 		if(equal(T, Keywords[i])) {
@@ -279,7 +280,7 @@ static Token *readCharLiteral(char *Start) {
 		C = readEscapedChar(&P, P + 1);
 	else
 		C = *P++;
-	
+
 	// strchr返回以 ' 开头的字符串，若无则为NULL
 	char *End = strchr(P, '\'');
 	if (!End) {
@@ -430,7 +431,7 @@ Token *tokenize(char *FileName, char *P) {
 	addLineNo(Head.Next);
 
 	// 由于解析标记符和解析关键字没有区别，所以我们最后判断以下关键字
-	convertKeyWords(Head.Next);	
+	convertKeyWords(Head.Next);
 
   // Head无内容，所以直接返回Next
   return Head.Next;
