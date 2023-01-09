@@ -91,7 +91,7 @@ static bool isTypename(Token *Tok);
 // structDecl = structUnionDecl
 // unionDecl = structUnionDecl
 // structUnionDecl = ident? ("{" structMembers)?
-// postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
@@ -1189,6 +1189,15 @@ static Node *structRef(Node *LHS, Token *Tok) {
 	return Nod;
 }
 
+// 后置++ --
+// 后置++  ===> 先A += 1, 再返回 A - 1 (-1不存储)
+static Node *newIncDec(Node *Nod, Token *Tok, int Addend) {
+	addType(Nod);
+	return newCast(newAdd(toAssign(newAdd(Nod, newNum(Addend, Tok), Tok)),
+												newNum(-Addend, Tok), Tok),
+								 Nod->Ty);
+}
+
 static Node *postfix(Token **Rest, Token *Tok) {
 	Node *Nod = primary(&Tok, Tok);
 
@@ -1213,6 +1222,18 @@ static Node *postfix(Token **Rest, Token *Tok) {
 			Nod = newUnary(ND_DEREF, Nod, Tok);
 			Nod = structRef(Nod, Tok->Next);
 			Tok = Tok->Next->Next;
+			continue;
+		}
+
+		if (equal(Tok, "++")) {
+			Nod = newIncDec(Nod, Tok, 1);
+			Tok = Tok->Next;
+			continue;
+		}
+
+		if (equal(Tok, "--")) {
+			Nod = newIncDec(Nod, Tok, -1);
+			Tok = Tok->Next;
 			continue;
 		}
 
