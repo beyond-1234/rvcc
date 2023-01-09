@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <strings.h>
 
 // 共用头文件，定义了多个文件共同使用的函数和数据结构
 
@@ -108,7 +109,7 @@ struct Node {
 	Node *Cond;				// 条件
 	Node *Then;				// 符合条件的代码体
 	Node *Else;				// 不符合条件的代码体
-	Node *Init;				// for循环的初始化语句 
+	Node *Init;				// for循环的初始化语句
 	Node *Inc;				// for循环的递增语句
 
 	// 代码块 or stmt expr
@@ -150,7 +151,7 @@ struct Type {
 
 	// 数组
 	int ArrayLen;			// 数组长度，元素总个数
-	
+
 	// 结构体成员
 	Member *Mems;
 
