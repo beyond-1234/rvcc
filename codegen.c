@@ -372,6 +372,10 @@ static void genExpr(Node *Nod) {
 			printLine("  # a0 / a1，结果写入a0");
       printLine("  div%s a0, a0, a1", Suffix);
 			return;
+		case ND_MOD: // % a0 == a0 % a1
+			printLine("  # a0 %% a1，结果写入a0");
+      printLine("  rem%s a0, a0, a1", Suffix);
+			return;
 		// RICSV 没有相等性指令
 		// 相等性需要两条指令来判断
 		case ND_EQ:

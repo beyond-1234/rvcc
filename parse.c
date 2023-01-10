@@ -80,11 +80,11 @@ static bool isTypename(Token *Tok);
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
 // assign = equality (assignOp assign)?
-// assignOp = "=" | "+=" | "-=" | "*=" | "/="
+// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 // equality = 关系运算符的比较结果
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
-// mul = cast ("*" cast | "/" cast)*
+// mul = cast ("*" cast | "/" cast | "%" cast)*
 // cast = "(" typeName ")" cast | unary
 // unary = ("+" | "-" | "*" | "&" | "!" | "~") cast | ("++" | "--") unary | postfix
 // structMembers = (declspec declarator (","  declarator)* ";")*
@@ -926,6 +926,8 @@ static Node *assign(Token **Rest, Token *Tok) {
 		return toAssign(newBinary(ND_MUL, Nod, assign(Rest, Tok->Next), Tok));
 	if (equal(Tok, "/="))
 		return toAssign(newBinary(ND_DIV, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "%="))
+		return toAssign(newBinary(ND_MOD, Nod, assign(Rest, Tok->Next), Tok));
 
 	*Rest = Tok;
 	return Nod;
@@ -1016,6 +1018,11 @@ static Node *mul(Token **Rest, Token *Tok) {
 
 		if(equal(Tok, "/")) {
 			Nod = newBinary(ND_DIV, Nod, cast(&Tok, Tok->Next), Start);
+			continue;
+		}
+
+		if(equal(Tok, "%")) {
+			Nod = newBinary(ND_MOD, Nod, cast(&Tok, Tok->Next), Start);
 			continue;
 		}
 
