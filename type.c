@@ -19,7 +19,7 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 
 // 判断Type是否为整型
 bool isInteger(Type *Ty) {
-	return Ty->Kind == TY_BOOL || Ty->Kind == TY_CHAR || Ty->Kind == TY_INT 
+	return Ty->Kind == TY_BOOL || Ty->Kind == TY_CHAR || Ty->Kind == TY_INT
 		|| Ty->Kind == TY_LONG || Ty->Kind == TY_SHORT || Ty->Kind == TY_ENUM;
 }
 
@@ -142,6 +142,10 @@ void addType(Node *Nd) {
   case ND_FUNCALL: // 暂且将函数类型设置为整形
     Nd->Ty = TyLong;
     return;
+	// 将节点类型设置为int
+	case ND_NOT:
+		Nd->Ty = TyInt;
+		return;
   // 将节点类型设为 变量的类型
   case ND_VAR:
     Nd->Ty = Nd->Var->Ty;
@@ -168,7 +172,7 @@ void addType(Node *Nd) {
 		// 如果不存在基类，则不能解引用
     if (!Nd->LHS->Ty->Base)
       errorTok(Nd->Tok, "invalid pointer dereference");
-		if (Nd->LHS->Ty->Base->Kind == TY_VOID) 
+		if (Nd->LHS->Ty->Base->Kind == TY_VOID)
 			errorTok(Nd->Tok, "dereference a void pointer");
     Nd->Ty = Nd->LHS->Ty->Base;
     return;

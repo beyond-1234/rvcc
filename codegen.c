@@ -175,7 +175,7 @@ int alignTo(int N, int Align) {
 
 // 根据变量的链表计算出偏移量
 static void assignLVarOffsets(Obj *Prog) {
-	
+
 	// 为每个函数计算其变量所用的栈空间
 	for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
 		if (!Fn->IsFunction) {
@@ -219,7 +219,7 @@ static void genAddr(Node *Nod) {
 				printLine("  addi a0, fp, %d", Nod->Var->Offset);
 			} else {
 				printLine("  # 获取全局变量%s的", Nod->Var->Name);
-				// 获取全局变量的地址	
+				// 获取全局变量的地址
 				// 高地址(高20位，31~20位)
 				printLine("  lui a0, %%hi(%s)", Nod->Var->Name);
 				// 低地址(低12位，19~0位)
@@ -255,12 +255,12 @@ static void genExpr(Node *Nod) {
 	switch(Nod->Kind) {
 		// li为addi别名指令，加载一个立即数到寄存器中
 		// 加载数字到a0
-		case ND_NUM: 
+		case ND_NUM:
 			printLine("  # 将%d加载到a0中", Nod->Val);
 			printLine("  li a0, %ld", Nod->Val);
 			return;
 		// 识别到负号对寄存器取反
-		case ND_NEG: 
+		case ND_NEG:
 			// 我们生成单叉树时只使用左子树
 			genExpr(Nod->LHS);
 			// neg a0, a0 是 sub a0, x0 的别名
@@ -307,6 +307,12 @@ static void genExpr(Node *Nod) {
 			genExpr(Nod->LHS);
 			cast(Nod->LHS->Ty, Nod->Ty);
 			return;
+		case ND_NOT:
+			genExpr(Nod->LHS);
+			printLine("  # 非运算");
+			// a0=0则置1，否则置0
+			printLine("  seqz a0, a0");
+			return;
 		case ND_FUNCALL: {
 			// 记录参数个数
 			int NArgs = 0;
@@ -344,25 +350,25 @@ static void genExpr(Node *Nod) {
 	// 判断是否是long类型或指针类型，这两种类型用64位计算，其他类型32位计算便可以
 	char *Suffix = Nod->LHS->Ty->Kind == TY_LONG || Nod->LHS->Ty->Base ? "" : "w";
 	switch(Nod->Kind) {
-		case ND_ADD: 
+		case ND_ADD:
 			printLine("  # a0 + a1，结果写入a0");
       printLine("  add%s a0, a0, a1", Suffix);
 			return;
-		case ND_SUB: 
+		case ND_SUB:
 			printLine("  # a0 - a1，结果写入a0");
       printLine("  sub%s a0, a0, a1", Suffix);
 			return;
-		case ND_MUL: 
+		case ND_MUL:
 			printLine("  # a0 * a1，结果写入a0");
       printLine("  mul%s a0, a0, a1", Suffix);
 			return;
-		case ND_DIV: 
+		case ND_DIV:
 			printLine("  # a0 / a1，结果写入a0");
       printLine("  div%s a0, a0, a1", Suffix);
 			return;
 		// RICSV 没有相等性指令
 		// 相等性需要两条指令来判断
-		case ND_EQ: 
+		case ND_EQ:
 			// a0 = a0 ^ a1 异或指令
 			// 如果相等则=0，如果不相等则不为0
 			printLine("  # 判断是否a0 %s a1", Nod->Kind == ND_EQ ? "=" : "≠");
@@ -372,14 +378,14 @@ static void genExpr(Node *Nod) {
 			// SLTIU：和SLTI一致，不过都是无符号数
 			// SLT/SLTU: 如果rs1<rs2，rd写1; 否则rd为0
 			// 伪指令SEQZ："SEQZ rd, rs" 实际上是 "SLTIU rd, rs1, 1"
-			// 
-			// 
+			//
+			//
 			// sltiu a0, a0, 1 异或后跟1比较
 			// 相等时为0，与1比较为小于；不等时一定不小于1
 			// 异或结果等于0则置1
       printLine("  seqz a0, a0");
 			return;
-		case ND_NEQ: 
+		case ND_NEQ:
 			// a0 = a0 ^ a1 异或指令
 			printLine("  # 判断是否a0 %s a1", Nod->Kind == ND_EQ ? "=" : "≠");
       printLine("  xor a0, a0, a1");
@@ -446,7 +452,7 @@ static void genStmt(Node *Nod) {
 			// 输出循环尾部标签
 			printLine("\n# 循环%d的.L.end.%d段标签", C, C);
 			printLine(".L.end.%d:", C);
-			
+
 			return;
 		}
 		case ND_IF: {
@@ -552,7 +558,7 @@ static void storeGeneral(int Reg, int Offset, int Size) {
 	case 8:
 		printLine("  sd %s, %d(fp)", ArgReg[Reg++], Offset);
 		return;
-	}	
+	}
 
 	unreachable();
 }
@@ -584,9 +590,9 @@ static void emitText(Obj *Prog) {
 
 		// 栈布局
 		//-------------------------------// sp
-		//              ra                  
+		//              ra
 		//-------------------------------// ra = sp-8
-		//              fp                  
+		//              fp
 		//-------------------------------// fp = sp-8
 		//						 变量
 		//-------------------------------// sp=sp-8-StackSize
