@@ -86,7 +86,7 @@ static bool isTypename(Token *Tok);
 // add = 多个乘数的加减结果
 // mul = cast ("*" cast | "/" cast)*
 // cast = "(" typeName ")" cast | unary
-// unary = ("+" | "-" | "*" | "&" | "!") cast | ("++" | "--") unary | postfix
+// unary = ("+" | "-" | "*" | "&" | "!" | "~") cast | ("++" | "--") unary | postfix
 // structMembers = (declspec declarator (","  declarator)* ";")*
 // structDecl = structUnionDecl
 // unionDecl = structUnionDecl
@@ -1065,6 +1065,11 @@ static Node *unary(Token **Rest, Token *Tok) {
 	// 非
 	if(equal(Tok, "!")) {
 		return newUnary(ND_NOT, cast(Rest, Tok->Next), Tok);
+	}
+
+	// 按位取反
+	if(equal(Tok, "~")) {
+		return newUnary(ND_BITNOT, cast(Rest, Tok->Next), Tok);
 	}
 
 	// 前置++ 改写为+=1
