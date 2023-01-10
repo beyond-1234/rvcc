@@ -79,8 +79,11 @@ static bool isTypename(Token *Tok);
 //			exprStmt(表达式语句) 后续会支持其他类型的语句
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
-// assign = equality (assignOp assign)?
-// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%="
+// assign = bitOr (assignOp assign)?
+// bitOr = bitXor ("|" bitXor)*
+// bitXor = bitAnd ("^" bitAnd)*
+// bitAnd = equality ("&" equality)*
+// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
 // equality = 关系运算符的比较结果
 // relational = 多个加数的比较结果
 // add = 多个乘数的加减结果
@@ -111,6 +114,9 @@ static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
 static Node *assign(Token **Rest, Token *Tok);
+static Node *bitOr(Token **Rest, Token *Tok);
+static Node *bitXor(Token **Rest, Token *Tok);
+static Node *bitAnd(Token **Rest, Token *Tok);
 static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
@@ -910,7 +916,9 @@ static Node *toAssign(Node *Binary) {
 }
 
 static Node *assign(Token **Rest, Token *Tok) {
-	Node *Nod = equality(&Tok, Tok);
+	/* Node *Nod = equality(&Tok, Tok); */
+	// equality
+	Node *Nod = bitOr(&Tok, Tok);
 
 	// 可能存在递归赋值 a=b=1
 	if(equal(Tok, "=")) {
@@ -928,6 +936,52 @@ static Node *assign(Token **Rest, Token *Tok) {
 		return toAssign(newBinary(ND_DIV, Nod, assign(Rest, Tok->Next), Tok));
 	if (equal(Tok, "%="))
 		return toAssign(newBinary(ND_MOD, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "&="))
+		return toAssign(newBinary(ND_BITAND, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "|="))
+		return toAssign(newBinary(ND_BITOR, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "^="))
+		return toAssign(newBinary(ND_BITXOR, Nod, assign(Rest, Tok->Next), Tok));
+
+	*Rest = Tok;
+	return Nod;
+}
+
+// 位操作是有顺序的递归调用
+// 按位或
+// bitOr = bitXor ("|" bitXor)*
+static Node *bitOr(Token **Rest, Token *Tok) {
+	Node *Nod = bitXor(&Tok, Tok);
+	while (equal(Tok, "|")) {
+		Token *Start = Tok;
+		Nod = newBinary(ND_BITOR, Nod, bitXor(&Tok, Tok->Next), Start);
+	}
+
+	*Rest = Tok;
+	return Nod;
+}
+
+// 按位异或
+// bitXor = bitAnd ("^" bitAnd)*
+static Node *bitXor(Token **Rest, Token *Tok) {
+	Node *Nod = bitAnd(&Tok, Tok);
+	while (equal(Tok, "^")) {
+		Token *Start = Tok;
+		Nod = newBinary(ND_BITXOR, Nod, bitAnd(&Tok, Tok->Next), Start);
+	}
+
+	*Rest = Tok;
+	return Nod;
+}
+
+// 按位与
+// bitAnd = equality ("&" equality)*
+static Node *bitAnd(Token **Rest, Token *Tok) {
+	Node *Nod = equality(&Tok, Tok);
+	while (equal(Tok, "&")) {
+		Token *Start = Tok;
+		Nod = newBinary(ND_BITAND, Nod, equality(&Tok, Tok->Next), Start);
+	}
 
 	*Rest = Tok;
 	return Nod;
