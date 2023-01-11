@@ -633,8 +633,16 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 		if (Cur != &Head) {
 			Tok  = skip(Tok, ",");
 		}
-		Type *Basety = declspec(&Tok, Tok, NULL);
-		Type *DeclarTy = declarator(&Tok, Tok, Basety);
+		Type *DeclarTy = declspec(&Tok, Tok, NULL);
+		DeclarTy = declarator(&Tok, Tok, DeclarTy);
+
+		// T类型的数组被转换为T*
+		if (DeclarTy->Kind == TY_ARRAY) {
+			Token *Name = DeclarTy->Name;
+			DeclarTy = pointerTo(DeclarTy->Base);
+			DeclarTy->Name = Name;
+		}
+
 		// 将类型复制到形参链表一份
 		Cur->Next = copyType(DeclarTy);
 		Cur = Cur->Next;
