@@ -1237,28 +1237,52 @@ static Type *structUnionDecl(Token **Rest, Token *Tok) {
     Tok = Tok->Next;
   }
 
+	// 构造不完整结构体 没有大括号
   if (Tag && !equal(Tok, "{")) {
+		*Rest = Tok;
+
+		// 有可能仅是声明，所以先找tag
     Type *Ty = findTag(Tag);
-    if (!Ty)
-      errorTok(Tag, "unknown struct type");
-    *Rest = Tok;
+		if (Ty)
+			return Ty;
+
+		// 如果没有找到则构造一个不完整的结构体
+		Ty = structType();
+		Ty->Size = -1;
+		pushTagScope(Tag, Ty);
     return Ty;
   }
 
-  // 构造一个结构体
-  Type *Ty = calloc(1, sizeof(Type));
-  Ty->Kind = TY_STRUCT;
-  structMembers(Rest, Tok->Next, Ty);
-  Ty->Align = 1;
+	// 匹配正常结构体
+	Tok = skip(Tok, "{");
 
-  // 如果有名称就注册结构体类型
-  if (Tag)
-    pushTagScope(Tag, Ty);
+  // 构造一个结构体
+	Type *Ty = structType();
+	structMembers(Rest, Tok, Ty);
+	Ty->Align = 1;
+
+  // 如果是重复定义则覆盖原有定义
+	// 否则有名称就注册结构体类型
+  if (Tag) {
+		for (TagScope *S = Scp->Tags; S; S = S->Next) {
+			if (equal(Tag, S->Name)) {
+				*S->Ty = *Ty;
+				return S->Ty;
+			}
+		}
+		pushTagScope(Tag, Ty);
+	}
   return Ty;
 }
 
 static Type *structDecl(Token **Rest, Token *Tok) {
 	Type *Ty = structUnionDecl(Rest, Tok);
+	Ty->Kind = TY_STRUCT;
+
+	// 不完整结构体
+	if (Ty->Size < 0) {
+		return Ty;
+	}
 
 	int Offset = 0;
 	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {

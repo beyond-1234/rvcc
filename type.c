@@ -41,6 +41,13 @@ Type *enumType(void) {
 	return newType(TY_ENUM, 4, 4);
 }
 
+// 构造枚举类型
+Type *structType(void) {
+	// size = 0
+	// align 暂时= 1
+	return newType(TY_STRUCT, 0, 1);
+}
+
 // 函数类型，并赋返回类型
 Type *funcType(Type *ReturnTy) {
 	Type *Ty = calloc(1, sizeof(Type));

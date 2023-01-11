@@ -193,6 +193,8 @@ void addType(Node *Nod);
 Type *pointerTo(Type *Base);
 // 枚举类型
 Type *enumType(void);
+// 结构体类型
+Type *structType(void);
 // 函数类型
 Type *funcType(Type *ReturnTy);
 // 复制类型
