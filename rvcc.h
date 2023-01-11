@@ -172,6 +172,7 @@ struct Type {
 struct Member {
 	Member *Next;			// 下一成员
 	Type *Ty;					// 类型
+	Token *Tok;				// 用于报错信息
 	Token *Name;			// 名称
 	int Offset;				// 成员在结构体内的偏移量
 };
