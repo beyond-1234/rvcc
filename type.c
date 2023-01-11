@@ -148,6 +148,8 @@ void addType(Node *Nd) {
     return;
 	// 将节点类型设置为int
 	case ND_NOT:
+	case ND_LOGAND:
+	case ND_LOGOR:
 		Nd->Ty = TyInt;
 		return;
 	// 按位取反

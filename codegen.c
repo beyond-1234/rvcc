@@ -313,6 +313,40 @@ static void genExpr(Node *Nod) {
 			// a0=0则置1，否则置0
 			printLine("  seqz a0, a0");
 			return;
+		case ND_LOGAND:{
+			int C = count();
+			printLine("\n# =====逻辑与%d===============", C);
+			genExpr(Nod->LHS);
+			// 判断是否短路
+			printLine("  # 左部短路，为0则跳转");
+			printLine("  beqz a0, .L.false.%d", C);
+			genExpr(Nod->RHS);
+			printLine("  # 右部判断, 为0则跳转");
+			printLine("  beqz a0, .L.false.%d", C);
+			printLine("  li a0, 1");
+			printLine("  j .L.end.%d", C);
+			printLine(".L.false.%d:", C);
+			printLine("  li a0, 0");
+			printLine(".L.end.%d:", C);
+			return;
+		}
+		case ND_LOGOR:{
+			int C = count();
+			printLine("\n# =====逻辑或%d===============", C);
+			genExpr(Nod->LHS);
+			// 判断是否短路
+			printLine("  # 左部短路，不为0则跳转");
+			printLine("  bnez a0, .L.true.%d", C);
+			genExpr(Nod->RHS);
+			printLine("  # 右部判断, 不为0则跳转");
+			printLine("  bnez a0, .L.true.%d", C);
+			printLine("  li a0, 0");
+			printLine("  j .L.end.%d", C);
+			printLine(".L.true.%d:", C);
+			printLine("  li a0, 1");
+			printLine(".L.end.%d:", C);
+			return;
+		}
 		case ND_BITNOT:
 			genExpr(Nod->LHS);
 			printLine("  # 按位取反");

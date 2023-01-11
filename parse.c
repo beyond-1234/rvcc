@@ -79,7 +79,9 @@ static bool isTypename(Token *Tok);
 //			exprStmt(表达式语句) 后续会支持其他类型的语句
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
-// assign = bitOr (assignOp assign)?
+// assign = logOr (assignOp assign)?
+// logOr = logAnd ("||" logAnd)*
+// logAnd = bitOr ("&&" bitOr)*
 // bitOr = bitXor ("|" bitXor)*
 // bitXor = bitAnd ("^" bitAnd)*
 // bitAnd = equality ("&" equality)*
@@ -114,6 +116,8 @@ static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
 static Node *assign(Token **Rest, Token *Tok);
+static Node *logOr(Token **Rest, Token *Tok);
+static Node *logAnd(Token **Rest, Token *Tok);
 static Node *bitOr(Token **Rest, Token *Tok);
 static Node *bitXor(Token **Rest, Token *Tok);
 static Node *bitAnd(Token **Rest, Token *Tok);
@@ -918,7 +922,7 @@ static Node *toAssign(Node *Binary) {
 static Node *assign(Token **Rest, Token *Tok) {
 	/* Node *Nod = equality(&Tok, Tok); */
 	// equality
-	Node *Nod = bitOr(&Tok, Tok);
+	Node *Nod = logOr(&Tok, Tok);
 
 	// 可能存在递归赋值 a=b=1
 	if(equal(Tok, "=")) {
@@ -942,6 +946,30 @@ static Node *assign(Token **Rest, Token *Tok) {
 		return toAssign(newBinary(ND_BITOR, Nod, assign(Rest, Tok->Next), Tok));
 	if (equal(Tok, "^="))
 		return toAssign(newBinary(ND_BITXOR, Nod, assign(Rest, Tok->Next), Tok));
+
+	*Rest = Tok;
+	return Nod;
+}
+
+// logOr = logAnd ("||" logAnd)*
+static Node *logOr(Token **Rest, Token *Tok) {
+	Node *Nod = logAnd(&Tok, Tok);
+	while (equal(Tok, "||")) {
+		Token *Start = Tok;
+		Nod = newBinary(ND_LOGOR, Nod, logAnd(&Tok, Tok->Next), Start);
+	}
+
+	*Rest = Tok;
+	return Nod;
+}
+
+// logAnd = bitOr ("&&" bitOr)*
+static Node *logAnd(Token **Rest, Token *Tok) {
+	Node *Nod = bitOr(&Tok, Tok);
+	while (equal(Tok, "&&")) {
+		Token *Start = Tok;
+		Nod = newBinary(ND_LOGAND, Nod, bitOr(&Tok, Tok->Next), Start);
+	}
 
 	*Rest = Tok;
 	return Nod;

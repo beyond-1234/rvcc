@@ -22,6 +22,8 @@ typedef enum {
 	ND_MUL,
 	ND_DIV,
 	ND_MOD,
+	ND_LOGAND,    // 逻辑与 &&
+	ND_LOGOR,     // 逻辑或 ||
 	ND_BITAND,
 	ND_BITOR,
 	ND_BITXOR,
