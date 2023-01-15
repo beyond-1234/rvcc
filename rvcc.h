@@ -45,6 +45,8 @@ typedef enum {
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
 	ND_BLOCK,			// { ... } 代码块
+	ND_GOTO,			// goto
+	ND_LABEL,			// goto 标签
 	ND_FUNCALL,		// 函数调用
 	ND_VAR,				// 变量
 	ND_EXPR_STMT,	// 表达式语句
@@ -129,6 +131,11 @@ struct Node {
 	char *FuncName;		// 函数名
 	Type *FuncType;		// 函数类型
 	Node *Args;				// 函数参数
+
+	// goto 和标签
+	char *Label;
+	char *UniqueLabel;
+	Node *GotoNext;
 
 	Obj *Var;					// 存储ND_VAR的变量
 	int64_t Val;					// 存储ND_NUM种类的值

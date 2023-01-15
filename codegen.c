@@ -548,6 +548,16 @@ static void genStmt(Node *Nod) {
 				genStmt(N);
 			}
 			return;
+		// goto 语句
+		case ND_GOTO:
+			printLine("  j %s", Nod->UniqueLabel);
+			return;
+		// 标签语句
+		case ND_LABEL:
+			printLine("%s:", Nod->UniqueLabel);
+			genStmt(Nod->LHS);
+			return;
+		// 生成return语句
 		case ND_RETURN:
 			printLine("# 返回语句");
 			genExpr(Nod->LHS);

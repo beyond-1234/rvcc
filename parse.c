@@ -47,6 +47,10 @@ static Scope *Scp = &(Scope){};
 Obj *Locals;		// 局部变量
 Obj *Globals;		// 全局变量
 
+// 当前函数内的goto和标签列表
+static Node *Gotos;
+static Node *Labels;
+
 // 当前正在解析的函数
 static Obj *CurrentFn;
 
@@ -73,11 +77,13 @@ static bool isTypename(Token *Tok);
 // declaration =
 //    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 // stmt = return语句返回;隔开的expr表达式 或
-//			if ( 表达式expr ) stmt else stmt 或
-//			for ( exprStmt expr?; expr? ) stmt
-//			while ( expr ) stmt
-//			{ 代码块语句(compoundStmt) 或
-//			exprStmt(表达式语句) 后续会支持其他类型的语句
+//        | "if" "(" expr ")" stmt ("else" stmt)?
+//        | "for" "(" exprStmt expr? ";" expr? ")" stmt
+//        | "while" "(" expr ")" stmt
+//        | "goto" ident ";"
+//        | ident ":" stmt
+//        | "{" compoundStmt
+//        | exprStmt
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
 // assign = logOr (assignOp assign)?
@@ -361,6 +367,25 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
   errorTok(Tok, "invalid operands");
   return NULL;
 }
+
+// 新增唯一姓名
+static char *newUniqueName() {
+	static int Id = 0;
+	return format(".L..%d", Id++);
+}
+
+// 新增全局匿名变量
+static Obj *newAnonGVar(Type *Ty) {
+	return newGVar(newUniqueName(), Ty);
+}
+
+// 新增字符串字面值
+static Obj *newStringLiteral(char *Str, Type *Ty) {
+	Obj *Var = newAnonGVar(Ty);
+	Var->InitData = Str;
+	return Var;
+}
+
 
 // 获取数字
 static int64_t getNumber(Token *Tok) {
@@ -881,6 +906,29 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		// while 循环代码块
 		Nod->Then = stmt(Rest, Tok);
 
+		return Nod;
+	}
+
+	if (equal(Tok, "goto")) {
+		Node *Nod = newNode(ND_GOTO, Tok);
+		Nod->Label = getIdent(Tok->Next);
+		// 将Nod同时存入Gotos，最后用于解析UniqueLabel
+		// UniqueLabel 用于codegen, 给跳转指令一个唯一的标签
+		Nod->GotoNext = Gotos;
+		Gotos = Nod;
+
+		*Rest = skip(Tok->Next->Next, ";");
+		return Nod;
+	}
+
+	if (Tok->Kind == TK_IDENT && equal(Tok->Next,	":")) {
+		Node *Nod = newNode(ND_LABEL, Tok);
+		Nod->Label = strndup(Tok->Loc, Tok->Len);
+		Nod->UniqueLabel = newUniqueName();
+		Nod->LHS = stmt(Rest, Tok->Next->Next);
+		// 将Nod同时存入Labels，最后用goto解析UniqueLabel
+		Nod->GotoNext = Labels;
+		Labels = Nod;
 		return Nod;
 	}
 
@@ -1454,24 +1502,6 @@ static Node *funCall(Token **Rest, Token *Tok) {
 	return Nod;
 }
 
-// 新增唯一姓名
-static char *newUniqueName() {
-	static int Id = 0;
-	return format(".L..%d", Id++);
-}
-
-// 新增全局匿名变量
-static Obj *newAnonGVar(Type *Ty) {
-	return newGVar(newUniqueName(), Ty);
-}
-
-// 新增字符串字面值
-static Obj *newStringLiteral(char *Str, Type *Ty) {
-	Obj *Var = newAnonGVar(Ty);
-	Var->InitData = Str;
-	return Var;
-}
-
 static Node *primary(Token **Rest, Token *Tok) {
 	Token *Start = Tok;
 
@@ -1579,6 +1609,27 @@ static void createParamLVars(Type *Param) {
 	}
 }
 
+// 匹配goto和标签
+// 因为标签可能会出现在goto后面，所以要在解析完函数后再进行goto和标签的解析
+static void resolveGotoLabels(void) {
+	// 遍历goto对应上label
+	for (Node *X = Gotos; X; X = X->GotoNext) {
+		for (Node *Y = Labels; Y; Y = Y->GotoNext) {
+			if (!strcmp(X->Label, Y->Label)) {
+				X->UniqueLabel = Y->UniqueLabel;
+				break;
+			}
+		}
+
+		if (X->UniqueLabel == NULL) {
+			errorTok(X->Tok->Next, "use of undeclared label");
+		}
+	}
+
+	Gotos = NULL;
+	Labels = NULL;
+}
+
 static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 	Type *Ty = declarator(&Tok, Tok, BaseTy);
 
@@ -1609,6 +1660,8 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 
 	// 离开域
 	leaveScope();
+	// 处理goto和标签
+	resolveGotoLabels();
 
 	return Tok;
 }
