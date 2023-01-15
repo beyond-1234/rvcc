@@ -430,7 +430,10 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
 	// 匹配最近的}来结束{代码块，用于支持{}嵌套
   while (!equal(Tok, "}")) {
 		// declaration
-		if (isTypename(Tok)) {
+		// 处理同名typedef和标签的冲突
+		// 即对typename进行判断时判断一下格式是否为标签格式 "label:"
+		// typename 要求不是这个格式即可
+		if (isTypename(Tok) && !equal(Tok->Next, ":")) {
 
 			VarAttr Attr = {};
 			Type *BaseTy = declspec(&Tok, Tok, &Attr);
