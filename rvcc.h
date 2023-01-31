@@ -44,6 +44,8 @@ typedef enum {
 	ND_IF,				// IF语句
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
+	ND_SWITCH,		// switch 分支
+	ND_CASE,			// case
 	ND_BLOCK,			// { ... } 代码块
 	ND_GOTO,			// goto
 	ND_LABEL,			// goto 标签
@@ -141,6 +143,10 @@ struct Node {
 	char *Label;
 	char *UniqueLabel;
 	Node *GotoNext;
+
+	// switch case
+	Node *CaseNext; // case 分支链表
+	Node *DefaultCase; // 默认case
 
 	Obj *Var;					// 存储ND_VAR的变量
 	int64_t Val;					// 存储ND_NUM种类的值

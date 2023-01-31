@@ -544,6 +544,36 @@ static void genStmt(Node *Nod) {
 			printLine(".L.end.%d:", C);
 			return;
 		}
+		case ND_SWITCH:
+			printLine("\n# =====switch语句===============");
+			genExpr(Nod->Cond);
+
+			printLine("  # 遍历或跳转到值等于a0的case标签");
+			for (Node *N = Nod->CaseNext; N; N = N->CaseNext) {
+				printLine("  li t0, %ld", N->Val);
+				printLine("  beq a0, t0, %s", N->Label);
+			}
+
+			if (Nod->DefaultCase) {
+				printLine("  # 跳转到default标签");
+				printLine("  j %s", Nod->DefaultCase->Label);
+			}
+
+			// 手动添加一个break结束switch
+			// 用于case没有匹配且default没有的情况
+			printLine("  # 结束switch，跳转break");
+			printLine("  j %s", Nod->BrkLabel);
+
+			// 生成case标签的语句
+			genStmt(Nod->Then);
+			// switch结束的跳转label，用于上面那个手动跳转break的jump指令
+			printLine("# switch 的break标签，结束switch");
+			printLine("%s:", Nod->BrkLabel);
+			return;
+		case ND_CASE:
+			printLine("# case标签，值为%d", Nod->Val);
+			printLine("%s:", Nod->Label);
+			genStmt(Nod->LHS);
 		case ND_BLOCK:
 			// 遍历语法树生成汇编
 			for (Node *N = Nod->Body; N;  N = N->Next) {

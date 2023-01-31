@@ -56,6 +56,10 @@ static char *BrkLabel;
 // 全局continue跳转的目标
 static char *ContLabel;
 
+// 如果我们正在解析switch语句，则指向表示case的节点
+// 否则为空
+static Node *CurrentSwitch;
+
 // 当前正在解析的函数
 static Obj *CurrentFn;
 
@@ -83,6 +87,9 @@ static bool isTypename(Token *Tok);
 //    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 // stmt = return语句返回;隔开的expr表达式 或
 //        | "if" "(" expr ")" stmt ("else" stmt)?
+//        | "switch" "(" expr ")" stmt
+//        | "case" num ":" stmt
+//        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
@@ -861,6 +868,74 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		*Rest = Tok;
 		return Nod;
 	}
+
+	// switch
+	if (equal(Tok, "switch")) {
+		Node *Nod = newNode(ND_SWITCH, Tok);
+		Tok = skip(Tok->Next, "(");
+		Nod->Cond = expr(&Tok, Tok);
+		Tok = skip(Tok, ")");
+
+		// 记录之前的CurrentSwitch
+		Node *Sw = CurrentSwitch;
+		// 设置当前的CurrentSwitch
+		CurrentSwitch = Nod;
+
+		// 存储之前的break标签的信息
+		char *Brk = BrkLabel;
+		// 设置break标签的名称
+		BrkLabel = Nod->BrkLabel = newUniqueName();
+
+		// 进入解析各个case
+		Nod->Then = stmt(Rest, Tok);
+
+		// 恢复之前的CurrentSwitch
+		CurrentSwitch = Sw;
+		// 恢复之前break标签的名称
+		BrkLabel = Brk;
+		return Nod;
+	}
+
+	// case
+	if (equal(Tok, "case")) {
+		// 说明不在switch里面
+		if (!CurrentSwitch)
+			errorTok(Tok, "stray case");
+
+		// case 后面的数值
+		int Val = getNumber(Tok->Next);
+
+		Node *Nod = newNode(ND_CASE, Tok);
+		Tok = skip(Tok->Next->Next, ":");
+		Nod->Label = newUniqueName();
+		// case 中的语句
+		Nod->LHS = stmt(Rest, Tok);
+		// case 对应的数值
+		Nod->Val = Val;
+
+		// 更新当前switch的全局CurrentSwitch
+		// 将旧的CurrentSwitch链表头部存入Nod的CaseNext
+		Nod->CaseNext = CurrentSwitch->CaseNext;
+		// 将Nod存入CurrentSwitch的CaseNext
+		CurrentSwitch->CaseNext = Nod;
+		return Nod;
+	}
+
+	// default
+	if (equal(Tok, "default")) {
+		// 说明不在switch里面
+		if (!CurrentSwitch)
+			errorTok(Tok, "stray default");
+
+		Node *Nod = newNode(ND_CASE, Tok);
+		Tok = skip(Tok->Next, ":");
+		Nod->Label = newUniqueName();
+		Nod->LHS = stmt(Rest, Tok);
+		// 存入CurrentSwitch->DefaultCase的默认标签
+		CurrentSwitch->DefaultCase = Nod;
+		return Nod;
+	}
+
 
 	// 解析for语句
 	if (equal(Tok, "for")) {
