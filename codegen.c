@@ -490,8 +490,8 @@ static void genStmt(Node *Nod) {
 				// 生成条件循环语句
 				genExpr(Nod->Cond);
 				// 判断结果是否为0，为0则跳转到结束部分
-				printLine("  # 若a0为0，则跳转到循环%d的.L.end.%d段", C, C);
-				printLine("  beqz a0, .L.end.%d", C);
+				printLine("  # 若a0为0，则跳转到循环%d的%s段", C, Nod->BrkLabel);
+				printLine("  beqz a0, %s", Nod->BrkLabel);
 			}
 			// 生成循环体的语句
 			printLine("\n# Then语句%d", C);
@@ -506,8 +506,8 @@ static void genStmt(Node *Nod) {
 			printLine("  # 跳转到循环%d的.L.begin.%d段", C, C);
 			printLine("  j .L.begin.%d", C);
 			// 输出循环尾部标签
-			printLine("\n# 循环%d的.L.end.%d段标签", C, C);
-			printLine(".L.end.%d:", C);
+			printLine("\n# 循环%d的%s段标签", C, Nod->BrkLabel);
+			printLine("%s:", Nod->BrkLabel);
 
 			return;
 		}

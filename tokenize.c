@@ -151,7 +151,7 @@ static bool isKeyword(Token *T) {
 		"while", "int", "sizeof", "char",
 		"struct", "union", "long", "short",
 		"void", "typedef", "_Bool", "enum",
-		"static", "goto"
+		"static", "goto", "break"
 	};
 
 	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {

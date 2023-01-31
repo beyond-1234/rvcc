@@ -51,6 +51,9 @@ Obj *Globals;		// 全局变量
 static Node *Gotos;
 static Node *Labels;
 
+// 全局break标签
+static char *BrkLabel;
+
 // 当前正在解析的函数
 static Obj *CurrentFn;
 
@@ -81,6 +84,7 @@ static bool isTypename(Token *Tok);
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
+//        | "break" ";"
 //        | ident ":" stmt
 //        | "{" compoundStmt
 //        | exprStmt
@@ -864,6 +868,10 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		// 进入for循环域以便支持局部的循环变量
 		enterScope();
 
+		// 在每层循环嵌套中设置break标签的名称
+		char *Brk = BrkLabel; // 暂存当前break标签
+		BrkLabel = Nod->BrkLabel = newUniqueName(); // 为当前全局break语句生成新的唯一名称
+
 		if (isTypename(Tok)) {
 			// 初始化循环变量
 			Type *BaseTy = declspec(&Tok,	Tok, NULL);
@@ -891,6 +899,9 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		// 离开for循环域
 		leaveScope();
 
+		// 离开一层循环时恢复全局break标签名称
+		BrkLabel = Brk;
+
 		return Nod;
 	}
 
@@ -906,8 +917,15 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		}
 		Tok = skip(Tok, ")");
 
+		// 在每层循环嵌套中设置break标签的名称
+		char *Brk = BrkLabel; // 暂存当前break标签
+		BrkLabel = Nod->BrkLabel = newUniqueName(); // 为当前全局break语句生成新的唯一名称
+
 		// while 循环代码块
 		Nod->Then = stmt(Rest, Tok);
+
+		// 离开一层循环时恢复全局break标签名称
+		BrkLabel = Brk;
 
 		return Nod;
 	}
@@ -921,6 +939,17 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		Gotos = Nod;
 
 		*Rest = skip(Tok->Next->Next, ";");
+		return Nod;
+	}
+
+	if (equal(Tok, "break")) {
+		if (!BrkLabel)
+			errorTok(Tok, "stray break");
+		// 生成一个break节点
+		// 跳转到break标签的位置
+		Node *Nod = newNode(ND_GOTO, Tok);
+		Nod->UniqueLabel = BrkLabel;
+		*Rest = skip(Tok->Next, ";");
 		return Nod;
 	}
 

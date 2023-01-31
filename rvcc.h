@@ -122,6 +122,9 @@ struct Node {
 	Node *Init;				// for循环的初始化语句
 	Node *Inc;				// for循环的递增语句
 
+	// break 标签
+	char *BrkLabel;
+
 	// 代码块 or stmt expr
 	Node *Body;
 
