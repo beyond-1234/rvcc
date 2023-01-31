@@ -124,6 +124,8 @@ struct Node {
 
 	// break 标签
 	char *BrkLabel;
+	// continue 标签
+	char *ContLabel;
 
 	// 代码块 or stmt expr
 	Node *Body;

@@ -53,6 +53,8 @@ static Node *Labels;
 
 // 全局break标签
 static char *BrkLabel;
+// 全局continue跳转的目标
+static char *ContLabel;
 
 // 当前正在解析的函数
 static Obj *CurrentFn;
@@ -85,6 +87,7 @@ static bool isTypename(Token *Tok);
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
 //        | "break" ";"
+//        | "continue" ";"
 //        | ident ":" stmt
 //        | "{" compoundStmt
 //        | exprStmt
@@ -872,6 +875,10 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		char *Brk = BrkLabel; // 暂存当前break标签
 		BrkLabel = Nod->BrkLabel = newUniqueName(); // 为当前全局break语句生成新的唯一名称
 
+		// 在每层循环嵌套中设置continue标签的名称
+		char *Cont = ContLabel; // 暂存当前continue标签
+		ContLabel = Nod->ContLabel = newUniqueName(); // 为当前全局continue语句生成新的唯一名称
+
 		if (isTypename(Tok)) {
 			// 初始化循环变量
 			Type *BaseTy = declspec(&Tok,	Tok, NULL);
@@ -902,6 +909,9 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		// 离开一层循环时恢复全局break标签名称
 		BrkLabel = Brk;
 
+		// 离开一层循环时恢复全局continue标签名称
+		ContLabel = Cont;
+
 		return Nod;
 	}
 
@@ -921,11 +931,18 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		char *Brk = BrkLabel; // 暂存当前break标签
 		BrkLabel = Nod->BrkLabel = newUniqueName(); // 为当前全局break语句生成新的唯一名称
 
+		// 在每层循环嵌套中设置continue标签的名称
+		char *Cont = ContLabel; // 暂存当前continue标签
+		ContLabel = Nod->ContLabel = newUniqueName(); // 为当前全局continue语句生成新的唯一名称
+
 		// while 循环代码块
 		Nod->Then = stmt(Rest, Tok);
 
 		// 离开一层循环时恢复全局break标签名称
 		BrkLabel = Brk;
+
+		// 离开一层循环时恢复全局continue标签名称
+		ContLabel = Cont;
 
 		return Nod;
 	}
@@ -949,6 +966,17 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		// 跳转到break标签的位置
 		Node *Nod = newNode(ND_GOTO, Tok);
 		Nod->UniqueLabel = BrkLabel;
+		*Rest = skip(Tok->Next, ";");
+		return Nod;
+	}
+
+	if (equal(Tok, "continue")) {
+		if (!ContLabel)
+			errorTok(Tok, "stray continue");
+		// 生成一个continue节点
+		// 跳转到continue标签的位置
+		Node *Nod = newNode(ND_GOTO, Tok);
+		Nod->UniqueLabel = ContLabel;
 		*Rest = skip(Tok->Next, ";");
 		return Nod;
 	}
