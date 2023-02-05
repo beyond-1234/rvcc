@@ -41,6 +41,8 @@ typedef enum {
 	ND_DEREF,			// 解引用 *
 	ND_NOT,				// 非, !
 	ND_BITNOT,		// 按位取反, ~
+	ND_SHL,				// <<
+	ND_SHR,				// >>
 	ND_IF,				// IF语句
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回

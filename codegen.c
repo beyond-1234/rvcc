@@ -458,6 +458,14 @@ static void genExpr(Node *Nod) {
       printLine("  slt a0, a1, a0");
       printLine("  xori a0, a0, 1");
 			return;
+		case ND_SHL:
+			printLine("  # a0逻辑左移a1位");
+			printLine("  sll%s a0, a0, a1", Suffix);
+			return;
+		case ND_SHR:
+			printLine("  # a0算术右移a1位");
+			printLine("  sra%s a0, a0, a1", Suffix);
+			return;
 		default:
 			break;
 	}

@@ -107,8 +107,10 @@ static bool isTypename(Token *Tok);
 // bitXor = bitAnd ("^" bitAnd)*
 // bitAnd = equality ("&" equality)*
 // assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
+//					| "<<=" | ">>="
 // equality = 关系运算符的比较结果
-// relational = 多个加数的比较结果
+// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+// shift = add ("<<" add | ">>" add)*
 // add = 多个乘数的加减结果
 // mul = cast ("*" cast | "/" cast | "%" cast)*
 // cast = "(" typeName ")" cast | unary
@@ -145,6 +147,7 @@ static Node *bitXor(Token **Rest, Token *Tok);
 static Node *bitAnd(Token **Rest, Token *Tok);
 static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
+static Node *shift(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *newAdd(Node *LHS, Node *RHS, Token *Tok);
 static Node *newSub(Node *LHS, Node *RHS, Token *Tok);
@@ -1157,6 +1160,10 @@ static Node *assign(Token **Rest, Token *Tok) {
 		return toAssign(newBinary(ND_BITOR, Nod, assign(Rest, Tok->Next), Tok));
 	if (equal(Tok, "^="))
 		return toAssign(newBinary(ND_BITXOR, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, "<<="))
+		return toAssign(newBinary(ND_SHL, Nod, assign(Rest, Tok->Next), Tok));
+	if (equal(Tok, ">>="))
+		return toAssign(newBinary(ND_SHR, Nod, assign(Rest, Tok->Next), Tok));
 
 	*Rest = Tok;
 	return Nod;
@@ -1247,28 +1254,49 @@ static Node *equality(Token **Rest, Token *Tok) {
 }
 
 static Node *relational(Token **Rest, Token *Tok) {
-	Node *Nod = add(&Tok, Tok);
+	Node *Nod = shift(&Tok, Tok);
 
 	while(true) {
 		Token *Start = Tok;
 		if(equal(Tok, "<")) {
-			Nod = newBinary(ND_LT, Nod, add(&Tok, Tok->Next), Start);
+			Nod = newBinary(ND_LT, Nod, shift(&Tok, Tok->Next), Start);
 			continue;
 		}
 
 		if(equal(Tok, "<=")) {
-			Nod = newBinary(ND_LTEQ, Nod, add(&Tok, Tok->Next), Start);
+			Nod = newBinary(ND_LTEQ, Nod, shift(&Tok, Tok->Next), Start);
 			continue;
 		}
 		// X > Y 相当于 Y < X
 		// >= 同
 		if(equal(Tok, ">")) {
-			Nod = newBinary(ND_LT, add(&Tok, Tok->Next), Nod, Start);
+			Nod = newBinary(ND_LT, shift(&Tok, Tok->Next), Nod, Start);
 			continue;
 		}
 
 		if(equal(Tok, ">=")) {
-			Nod = newBinary(ND_LTEQ, add(&Tok, Tok->Next), Nod, Start);
+			Nod = newBinary(ND_LTEQ, shift(&Tok, Tok->Next), Nod, Start);
+			continue;
+		}
+
+		*Rest = Tok;
+		return Nod;
+	}
+}
+
+static Node *shift(Token **Rest, Token *Tok) {
+	Node *Nod = add(&Tok, Tok);
+
+	while(true) {
+		Token *Start = Tok;
+
+		if(equal(Tok, "<<")) {
+			Nod = newBinary(ND_SHL, Nod, add(&Tok, Tok->Next), Start);
+			continue;
+		}
+
+		if(equal(Tok, ">>")) {
+			Nod = newBinary(ND_SHR, Nod, add(&Tok, Tok->Next), Start);
 			continue;
 		}
 
