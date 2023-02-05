@@ -307,6 +307,21 @@ static void genExpr(Node *Nod) {
 			genExpr(Nod->LHS);
 			cast(Nod->LHS->Ty, Nod->Ty);
 			return;
+		// 三元表达式
+		case ND_COND: {
+			int C = count();
+			printLine("\n# =====条件运算符%d===========", C);
+			genExpr(Nod->Cond);
+			printLine("  # 条件判断，为0则跳转");
+			printLine("  beqz a0, .L.else.%d", C);
+			genExpr(Nod->Then);
+			printLine("  # 跳转到条件运算符结尾部分");
+			printLine("  j .L.end.%d", C);
+			printLine(".L.else.%d:", C);
+			genExpr(Nod->Else);
+			printLine(".L.end.%d:", C);
+			return;
+		}
 		case ND_NOT:
 			genExpr(Nod->LHS);
 			printLine("  # 非运算");

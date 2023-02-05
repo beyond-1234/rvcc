@@ -169,6 +169,16 @@ void addType(Node *Nd) {
   case ND_VAR:
     Nd->Ty = Nd->Var->Ty;
     return;
+	// 三元表达式
+	// 如果:左或右部为void则为void，否则为二者兼容的类型
+	case ND_COND:
+		if (Nd->Then->Ty->Kind == TY_VOID || Nd->Else->Ty->Kind == TY_VOID) {
+			Nd->Ty = TyVoid;
+		} else {
+			usualArithConv(&Nd->Then, &Nd->Else);
+			Nd->Ty = Nd->Then->Ty;
+		}
+		return;
 	// , 的节点类型为右部的节点类型
 	case ND_COMMA:
 		Nd->Ty = Nd->RHS->Ty;

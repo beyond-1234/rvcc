@@ -35,6 +35,7 @@ typedef enum {
 	ND_NUM,
 	ND_CAST,			// 类型转换
 	ND_ASSIGN,		// 赋值
+	ND_COND,			// 三元表达式
 	ND_COMMA,		  // 逗号
 	ND_MEMBER,		// 结构体成员
 	ND_ADDR,			// 取地址 &

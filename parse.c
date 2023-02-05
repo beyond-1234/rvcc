@@ -100,7 +100,8 @@ static bool isTypename(Token *Tok);
 //        | exprStmt
 // exprStmt = 分号隔开的expr 或空语句;
 // expr = assign 赋值表达式 或 递归的assign赋值表达式
-// assign = logOr (assignOp assign)?
+// assign = conditional (assignOp assign)?
+// conditional = logOr ("?" expr ":" conditional)?
 // logOr = logAnd ("||" logAnd)*
 // logAnd = bitOr ("&&" bitOr)*
 // bitOr = bitXor ("|" bitXor)*
@@ -140,6 +141,7 @@ static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
 static Node *assign(Token **Rest, Token *Tok);
+static Node *conditional(Token **Rest, Token *Tok);
 static Node *logOr(Token **Rest, Token *Tok);
 static Node *logAnd(Token **Rest, Token *Tok);
 static Node *bitOr(Token **Rest, Token *Tok);
@@ -1135,8 +1137,8 @@ static Node *toAssign(Node *Binary) {
 
 static Node *assign(Token **Rest, Token *Tok) {
 	/* Node *Nod = equality(&Tok, Tok); */
-	// equality
-	Node *Nod = logOr(&Tok, Tok);
+	// conditional
+	Node *Nod = conditional(&Tok, Tok);
 
 	// 可能存在递归赋值 a=b=1
 	if(equal(Tok, "=")) {
@@ -1166,6 +1168,24 @@ static Node *assign(Token **Rest, Token *Tok) {
 		return toAssign(newBinary(ND_SHR, Nod, assign(Rest, Tok->Next), Tok));
 
 	*Rest = Tok;
+	return Nod;
+}
+
+static Node *conditional(Token **Rest, Token *Tok) {
+	Node *Cond = logOr(&Tok, Tok);
+
+	if (!equal(Tok, "?")) {
+		*Rest = Tok;
+		return Cond;
+	}
+
+	Node *Nod = newNode(ND_COND, Tok);
+	Nod->Cond = Cond;
+	// expr ":"
+	Nod->Then = expr(&Tok, Tok->Next);
+	Tok = skip(Tok, ":");
+	// conditional 这里不能解析为赋值式，因为c没有左值
+	Nod->Else = conditional(Rest, Tok);
 	return Nod;
 }
 
