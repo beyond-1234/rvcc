@@ -13,6 +13,11 @@
 #include <errno.h>
 #include <strings.h>
 
+// 宏展开函数
+// 括号是为了保证内部表达式作为整体去求值
+#define MAX(x, y) ((x) < (y) ? (y) : (x))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+
 // 共用头文件，定义了多个文件共同使用的函数和数据结构
 
 // 语法树节点种类
