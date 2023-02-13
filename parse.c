@@ -888,17 +888,35 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy) {
   return Nd;
 }
 
+// 跳过多余元素
+static Token *skipExcessElement(Token *Tok) {
+	if (equal(Tok, "{")) {
+		Tok = skipExcessElement(Tok->Next);
+		return skip(Tok, "}");
+	}
+
+	// 解析并舍弃多余元素
+	assign(&Tok, Tok);
+	return Tok;
+}
+
 // initializer = "{" initializer ("," initializer)* "}" | assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 	if (Init->Ty->Kind == TY_ARRAY) {
 		Tok = skip(Tok, "{");
 
 		// 遍历变量
-		for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) {
+		for (int I = 0; !consume(Rest, Tok, "}"); I++) {
+		/* for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) { */
 			if (I > 0) {
 				Tok = skip(Tok, ",");
 			}
-			initializer2(&Tok, Tok, Init->Children[I]);
+			if (I < Init->Ty->ArrayLen) {
+				initializer2(&Tok, Tok, Init->Children[I]);
+			} else {
+				// 跳过多余元素
+				Tok = skipExcessElement(Tok);
+			}
 		}
 
 		*Rest = skip(Tok, "}");
