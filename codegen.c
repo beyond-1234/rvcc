@@ -310,6 +310,36 @@ static void genExpr(Node *Nod) {
 			genExpr(Nod->LHS);
 			cast(Nod->LHS->Ty, Nod->Ty);
 			return;
+		// 内存清零
+		case ND_MEMZERO: {
+			printLine("  # 对%s的内存%d(fp)清零%d位", Nod->Var->Name, Nod->Var->Offset,
+							Nod->Var->Ty->Size);
+			// 对栈内变量所占用的每个字节都进行清零
+			for (int I = 0; I < Nod->Var->Ty->Size; I++)
+				printLine("  sb zero, %d(fp)", Nod->Var->Offset + I);
+			return;
+		}
+		/* case ND_MEMZERO: { */
+		/* 	printLine("  # 对%s的内存%d(fp)清零%d位", Nod->Var->Name, Nod->Var->Offset, Nod->Var->Ty->Size); */
+		/* 	// 对栈内变量所占用的每个字节进行清零 */
+		/* 	int I = 0; */
+		/* 	while (I + 8 < Nod->Var->Ty->Size) { */
+		/* 		printLine("  sd zero, %d(fp)", Nod->Var->Offset + I); */
+		/* 		I += 8; */
+		/* 	} */
+		/* 	while (I + 4 < Nod->Var->Ty->Size) { */
+		/* 		printLine("  sw zero, %d(fp)", Nod->Var->Offset + I); */
+		/* 		I += 4; */
+		/* 	} */
+		/* 	while (I + 2 < Nod->Var->Ty->Size) { */
+		/* 		printLine("  sh zero, %d(fp)", Nod->Var->Offset + I); */
+		/* 		I += 2; */
+		/* 	} */
+		/* 	while (I + 1 < Nod->Var->Ty->Size) { */
+		/* 		printLine("  sb zero, %d(fp)", Nod->Var->Offset + I); */
+		/* 		I += 1; */
+		/* 	} */
+		/* } */
 		// 三元表达式
 		case ND_COND: {
 			int C = count();

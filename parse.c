@@ -894,7 +894,7 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 		Tok = skip(Tok, "{");
 
 		// 遍历变量
-		for (int I = 0; I < Init->Ty->ArrayLen; I++) {
+		for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) {
 			if (I > 0) {
 				Tok = skip(Tok, ",");
 			}
@@ -953,11 +953,14 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
 		return Nod;
 	}
 
+	// 如果需要作为右值的表达式为空，则设空表达式
+	if (!Init->Expr) {
+		return newNode(ND_NULL_EXPR, Tok);
+	}
+
 	// 变量可以直接赋值的左值
 	Node *LHS = InitDesigExpr(Desig, Tok);
-	// 初始化的右值
-	Node *RHS = Init->Expr;
-	return newBinary(ND_ASSIGN, LHS, RHS, Tok);
+	return newBinary(ND_ASSIGN, LHS, Init->Expr, Tok);
 }
 
 static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
@@ -965,8 +968,15 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 	Initializer *Init = initializer(Rest, Tok, Var->Ty);
 	// 指派初始化
 	InitDesig Desig = {NULL, 0, Var};
+
+	// 我们首先要为所有元素赋0，然后有指定值的再进行赋值
+	Node *LHS = newNode(ND_MEMZERO, Tok);
+	LHS->Var = Var;
+
 	// 创建局部变量的初始化
-	return createLVarInit(Init, Var->Ty, &Desig, Tok);
+	Node *RHS = createLVarInit(Init, Var->Ty, &Desig, Tok);
+	// 左部为全部清零，右部为需要赋值的部分
+	return newBinary(ND_COMMA, LHS, RHS, Tok);
 }
 
 static Node *stmt(Token **Rest, Token *Tok) {

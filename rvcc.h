@@ -56,7 +56,8 @@ typedef enum {
 	ND_FUNCALL,		// 函数调用
 	ND_VAR,				// 变量
 	ND_EXPR_STMT,	// 表达式语句
-	ND_STMT_EXPR	// 语句表达式
+	ND_STMT_EXPR,	// 语句表达式
+	ND_MEMZERO		// 栈中变量清零
 } NodeKind;
 
 typedef struct Type Type;
