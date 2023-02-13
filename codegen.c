@@ -253,6 +253,9 @@ static void genExpr(Node *Nod) {
   // 这里我们将算式分解为 num (op num) (op num)...的形式
   // 所以先将第一个num传入a0
 	switch(Nod->Kind) {
+		// 空表达式
+		case ND_NULL_EXPR:
+			return;
 		// li为addi别名指令，加载一个立即数到寄存器中
 		// 加载数字到a0
 		case ND_NUM:
