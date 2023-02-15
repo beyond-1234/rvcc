@@ -1,6 +1,4 @@
 #include "rvcc.h"
-#include <stdint.h>
-#include <stdlib.h>
 
 // 局部和全局变量或是typedef, enum常量的域
 typedef struct VarScope VarScope;
@@ -1195,14 +1193,22 @@ static void writeBuf(char *Buf, uint64_t Val, int Sz) {
 // 对全局变量的初始化器写入数据
 static void writeGVarData(Initializer *Init, Type *Ty, char *Buf, int Offset) {
 	// 处理数组
-	if (Ty->Kind ==TY_ARRAY) {
+	if (Ty->Kind == TY_ARRAY) {
 		int Sz = Ty->Base->Size;
-		for (int I = 0; Ty->ArrayLen; I++) {
+		for (int I = 0; I < Ty->ArrayLen; I++) {
 			writeGVarData(Init->Children[I], Ty->Base, Buf, Offset + Sz * I);
 		}
-
 		return;
 	}
+
+	 // 处理结构体
+  if (Ty->Kind == TY_STRUCT) {
+    for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+      writeGVarData(Init->Children[Mem->Idx], Mem->Ty, Buf,
+                    Offset + Mem->Offset);
+		}
+    return;
+  }
 
 	// 计算常量表达式
 	if (Init->Expr) {
