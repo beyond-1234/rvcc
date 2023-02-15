@@ -114,10 +114,11 @@ static bool isTypename(Token *Tok);
 // declaration = declspec (declarator ("=" initializer)?
 //                         ("," declarator ("=" initializer)?)*)? ";"
 // initializer = stringInitializer | arrayInitializer | structInitializer
-//             | assign
+//					 	 | unionInitializer |assign
 // stringInitializer = stringLiteral
 // arrayInitializer = "{" initializer ("," initializer)* "}"
 // structInitializer = "{" initializer ("," initializer)* "}"
+// unionInitializer = "{" initializer "}"
 // stmt = return语句返回;隔开的expr表达式 或
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "switch" "(" expr ")" stmt
@@ -285,8 +286,8 @@ static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
 		}
 	}
 
-	// 处理结构体类型
-	if (Ty->Kind == TY_STRUCT) {
+	// 处理结构体和联合体类型
+	if (Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
 		// 计算结构体成员数量
 		int Len = 0;
 		for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
@@ -302,6 +303,7 @@ static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
 		}
 		return Init;
 	}
+
 
 	return Init;
 }
@@ -1027,6 +1029,13 @@ static void structInitializer(Token **Rest, Token *Tok, Initializer *Init) {
 	}
 }
 
+static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+	// 联合体只接受第一个成员用来初始化
+	Tok = skip(Tok, "{");
+	initializer2(&Tok, Tok, Init->Children[0]);
+	*Rest = skip(Tok, "}");
+}
+
 
 // initializer = "{" initializer ("," initializer)* "}" | assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
@@ -1053,6 +1062,11 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 		}
 
 		structInitializer(Rest, Tok, Init);
+		return;
+	}
+
+	if (Init->Ty->Kind == TY_UNION) {
+		unionInitializer(Rest, Tok, Init);
 		return;
 	}
 
@@ -1125,6 +1139,13 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
 			Nod = newBinary(ND_COMMA, Nod, RHS, Tok);
 		}
 		return Nod;
+	}
+
+	if (Ty->Kind == TY_UNION) {
+		// Desig2存储了成员变量
+		InitDesig Desig2 = {Desig, 0, Ty->Mems};
+		// 只处理第一个成员变量
+		return createLVarInit(Init->Children[0], Ty->Mems->Ty, &Desig2, Tok);
 	}
 
 	// 如果需要作为右值的表达式为空，则设空表达式
