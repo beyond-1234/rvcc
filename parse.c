@@ -1042,6 +1042,16 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 	}
 
 	if (Init->Ty->Kind == TY_STRUCT) {
+
+		if (!equal(Tok, "{")) {
+			Node *Expr = assign(Rest, Tok);
+			addType(Expr);
+			if (Expr->Ty->Kind == TY_STRUCT) {
+				Init->Expr = Expr;
+				return;
+			}
+		}
+
 		structInitializer(Rest, Tok, Init);
 		return;
 	}
@@ -1103,7 +1113,8 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
 		return Nod;
 	}
 
-	if (Ty->Kind == TY_STRUCT) {
+	// 若被其他结构体赋值过，则存在Expr不需要解析
+	if (Ty->Kind == TY_STRUCT && !Init->Expr) {
 		// 构造结构体的初始化器结构
 		Node *Nod = newNode(ND_NULL_EXPR, Tok);
 
