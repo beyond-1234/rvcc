@@ -70,6 +70,8 @@ typedef struct Type Type;
 typedef struct Node Node;
 // 结构体成员
 typedef struct Member Member;
+// 重定位
+typedef struct Relocation Relocation;
 
 // 变量 或 函数
 typedef struct Obj Obj;
@@ -85,13 +87,23 @@ struct Obj {
 	Obj *Params;			// 函数形参
 
 	// 全局变量
-	char *InitData;
+	char *InitData;		// 用于初始化的数据
+	Relocation *Rel;  // 指向其他全局变量的指针
 
   Node *Body;    // 函数体
   Obj *Locals;   // 本地变量
   int StackSize; // 栈大小
 };
 
+// 全局变量可被 常量表达式 或者 指向其他全局变量的指针 初始化。
+// 此结构体用于 指向其他全局变量的指针 的情况。
+typedef struct Relocation Relocation;
+struct Relocation {
+	Relocation *Next; // 下一个
+	int Offset;				// 偏移量
+	char *Label;			// 标签名
+	long Addend;			// 加数
+};
 
 // 词法分析的终结符类型
 typedef enum {

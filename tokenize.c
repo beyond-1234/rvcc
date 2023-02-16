@@ -1,6 +1,9 @@
 #include "rvcc.h"
 
-static char *CurrentFileName;
+// 输入的文件名
+static char *CurrentFilename;
+
+// 输入的字符串
 static char *CurrentInput;
 
 // 输出错误信息
@@ -25,57 +28,55 @@ void error(char *Fmt, ...) {
 // foo.c:10: x = y + 1;
 //               ^ <错误信息>
 static void verrorAt(int LineNo, char *Loc, char *Fmt, va_list VA) {
-	// find the line including Loc
-	char *Line = Loc;
-	// Line goes to the beginning of the actual line
-	// if Line < CurrentInput, then is the beginning of file
-	// Line[-1] != '\n' if the one before the first char of current line is the ending of the last line
-	while (CurrentInput < Line && Line[-1] != '\n') {
-		Line--;
-	}
+  // 查找包含loc的行
+  char *Line = Loc;
+  // Line递减到当前行的最开始的位置
+  // Line<CurrentInput, 判断是否读取到文件最开始的位置
+  // Line[-1] != '\n'，Line字符串前一个字符是否为换行符（上一行末尾）
+  while (CurrentInput < Line && Line[-1] != '\n')
+    Line--;
 
-	// End goes to the ending of the line which is \n
-	char *End = Loc;
-	while (*End != '\n') {
-		End++;
-	}
+  // End递增到行尾的换行符
+  char *End = Loc;
+  while (*End != '\n')
+    End++;
 
-	// print filename:line
-	// Indent records how many words printed
-	int Indent = fprintf(stderr, "%s:%d ", CurrentFileName, LineNo);
-	fprintf(stderr, "%.*s\n", (int)(End - Line), Line);
+  // 输出 文件名:错误行
+  // Indent记录输出了多少个字符
+  int Indent = fprintf(stderr, "%s:%d: ", CurrentFilename, LineNo);
+  // 输出Line的行内所有字符（不含换行符）
+  fprintf(stderr, "%.*s\n", (int)(End - Line), Line);
 
-	// 计算出错位置，Loc是出错位置的指针 + how many words printed
-	int Pos = Loc - CurrentInput + Indent;
-	// 将字符串补齐Pos位，因为是空字符串，所以填充Pos个空格
-	fprintf(stderr, "%*s", Pos, "");
-	fprintf(stderr, "^ ");
-	vfprintf(stderr, Fmt, VA);
-	fprintf(stderr, "\n");
-	va_end(VA);
-	exit(1);
+  // 计算错误信息位置，在当前行内的偏移量+前面输出了多少个字符
+  int Pos = Loc - Line + Indent;
+
+  // 将字符串补齐为Pos位，因为是空字符串，所以填充Pos个空格。
+  fprintf(stderr, "%*s", Pos, "");
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, Fmt, VA);
+  fprintf(stderr, "\n");
+  va_end(VA);
 }
 
 // 字符解析出错
 void errorAt(char *Loc, char *Fmt, ...) {
-	int LineNo = 1;
-	for (char *P = CurrentInput; P < Loc; P++) {
-		// LineNo++ if counters \n
-		if (*P == '\n') {
-			LineNo++;
-		}
-	}
+  int LineNo = 1;
+  for (char *P = CurrentInput; P < Loc; P++)
+    if (*P == '\n')
+      LineNo++;
 
-	va_list VA;
-	va_start(VA, Fmt);
-	verrorAt(LineNo, Loc, Fmt, VA);
+  va_list VA;
+  va_start(VA, Fmt);
+  verrorAt(LineNo, Loc, Fmt, VA);
+  exit(1);
 }
 
 // Tok解析出错
 void errorTok(Token *Tok, char *Fmt, ...) {
-	va_list VA;
-	va_start(VA, Fmt);
-	verrorAt(Tok->LineNo, Tok->Loc, Fmt, VA);
+  va_list VA;
+  va_start(VA, Fmt);
+  verrorAt(Tok->LineNo, Tok->Loc, Fmt, VA);
+  exit(1);
 }
 
 // 判断Tok的值是否等于指定值，没有用char，是为了后续拓展
@@ -88,29 +89,28 @@ bool equal(Token *Tok, char *Str) {
 
 // 跳过指定的Str
 Token *skip(Token *Tok, char *Str) {
-  if (!equal(Tok, Str)) {
-		errorTok(Tok, "expect '%s'", Str);
-	}
+  if (!equal(Tok, Str))
+    errorTok(Tok, "expect '%s'", Str);
   return Tok->Next;
 }
 
-// 消耗指定的Str
+// 消耗掉指定Token
 bool consume(Token **Rest, Token *Tok, char *Str) {
+  // 存在
   if (equal(Tok, Str)) {
-		*Rest = Tok->Next;
-		return true;
-	}
-
-	*Rest = Tok;
+    *Rest = Tok->Next;
+    return true;
+  }
+  // 不存在
+  *Rest = Tok;
   return false;
 }
 
 // 返回TK_NUM的值
 static int getNumber(Token *Tok) {
-  if (Tok->Kind != TK_NUM) {
-		errorTok(Tok, "expect a number");
-	}
-	return Tok->Val;
+  if (Tok->Kind != TK_NUM)
+    errorTok(Tok, "expect a number");
+  return Tok->Val;
 }
 
 // 生成新的Token
@@ -123,66 +123,22 @@ static Token *newToken(TokenKind Kind, char *Start, char *End) {
   return Tok;
 }
 
-// 判断P是否以Str开头
-static bool startsWith(char *P, char *Str) {
-	return strncmp(P, Str, strlen(Str)) == 0;
+// 判断Str是否以SubStr开头
+static bool startsWith(char *Str, char *SubStr) {
+  // 比较LHS和RHS的N个字符是否相等
+  return strncmp(Str, SubStr, strlen(SubStr)) == 0;
 }
 
-// 读取符号的长度
-static int readPunct(char *P) {
-	static char *KW[] = {"==", "!=", "<<=", ">>=", "<=", ">=", "->",
-											 "+=", "-=", "*=", "/=",
-											 "++", "--", "%=", "&=", "|=", "^=",
-											 "&&", "||", "<<", ">>"};
-
-	for (int I = 0; I < sizeof(KW) / sizeof(*KW); I++) {
-		if (startsWith(P, KW[I])) {
-			return strlen(KW[I]);
-		}
-	}
-
-	// 判断1字节的操作符
-	return ispunct(*P) ? 1 : 0;
-}
-
-static bool isKeyword(Token *T) {
-	static char *Keywords[] = {
-		"return", "if", "else", "for",
-		"while", "int", "sizeof", "char",
-		"struct", "union", "long", "short",
-		"void", "typedef", "_Bool", "enum",
-		"static", "goto", "break", "continue",
-		"switch", "case", "default"
-	};
-
-	for(int i = 0; i < sizeof(Keywords) / sizeof(*Keywords); ++i) {
-		if(equal(T, Keywords[i])) {
-			return true;
-		}
-	}
-	return false;
-}
-
-// 将名为"return"的终结符转换为关键字
-static void convertKeyWords(Token  *Tok) {
-	for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
-		if (isKeyword(T)) {
-			T->Kind = TK_KEYWORD;
-		}
-	}
-}
-
-// 判断变量首字母是否合法
-// [a-zA-z_]
+// 判断标记符的首字母规则
+// [a-zA-Z_]
 static bool isIdent1(char C) {
-	return ('a' <= C && C <= 'z') || ('A' <= C && C <= 'Z') || (C == '_');
+  // a-z与A-Z在ASCII中不相连，所以需要分别判断
+  return ('a' <= C && C <= 'z') || ('A' <= C && C <= 'Z') || C == '_';
 }
 
-// 判断变量其他字母是否合法
-// [a-zA-z_0-9]
-static bool isIdent2(char C) {
-	return isIdent1(C) || ('1' <= C && C <= '9');
-}
+// 判断标记符的非首字母的规则
+// [a-zA-Z0-9_]
+static bool isIdent2(char C) { return isIdent1(C) || ('0' <= C && C <= '9'); }
 
 // 返回一位十六进制转十进制
 // hexDigit = [0-9a-fA-F]
@@ -196,43 +152,74 @@ static int fromHex(char C) {
   return C - 'A' + 10;
 }
 
+// 读取操作符
+static int readPunct(char *Ptr) {
+  // 判断多字节的操作符
+  static char *Kw[] = {
+      "<<=", ">>=", "==", "!=", "<=", ">=", "->", "+=", "-=", "*=", "/=",
+      "++",  "--",  "%=", "&=", "|=", "^=", "&&", "||", "<<", ">>",
+  };
+
+  // 遍历列表匹配Ptr字符串
+  for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
+    if (startsWith(Ptr, Kw[I]))
+      return strlen(Kw[I]);
+  }
+
+  // 判断1字节的操作符
+  return ispunct(*Ptr) ? 1 : 0;
+}
+
+// 判断是否为关键字
+static bool isKeyword(Token *Tok) {
+  // 关键字列表
+  static char *Kw[] = {
+      "return", "if",       "else",   "for",   "while",   "int",
+      "sizeof", "char",     "struct", "union", "long",    "short",
+      "void",   "typedef",  "_Bool",  "enum",  "static",  "goto",
+      "break",  "continue", "switch", "case",  "default",
+  };
+
+  // 遍历关键字列表匹配
+  for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
+    if (equal(Tok, Kw[I]))
+      return true;
+  }
+
+  return false;
+}
+
 // 读取转义字符
-// 不带第一个反斜杠
 static int readEscapedChar(char **NewPos, char *P) {
-	if ('0' <= *P && *P <= '7') {
-		// 读取一个八进制数字，不能长于3位
-		// \abc = (a*8+b)*8+c
-		// ++ 是为了跳过斜杠
-		int C = *P++ - '0';
-		if ('0' <= *P && *P <= '7') {
-			C = (C << 3) + (*P++ - '0');
-			if ('0' <= *P && *P <= '7') {
-				C = (C << 3) + (*P++ - '0');
-			}
-		}
-		*NewPos = P;
-		return C;
-	}
+  if ('0' <= *P && *P <= '7') {
+    // 读取一个八进制数字，不能长于三位
+    // \abc = (a*8+b)*8+c
+    int C = *P++ - '0';
+    if ('0' <= *P && *P <= '7') {
+      C = (C << 3) + (*P++ - '0');
+      if ('0' <= *P && *P <= '7')
+        C = (C << 3) + (*P++ - '0');
+    }
+    *NewPos = P;
+    return C;
+  }
 
-	// 读取十六进制转义字符
-	// 十六进制转义字符没有字符数限制，只有读取到非十六进制字符时才会停止
-	if (*P == 'x') {
-		P++;
-		if (!isxdigit(*P)) {
-			errorAt(P, "invalid hex escape sequence");
-		}
+  if (*P == 'x') {
+    P++;
+    // 判断是否为十六进制数字
+    if (!isxdigit(*P))
+      errorAt(P, "invalid hex escape sequence");
 
-		int C = 0;
-		// 读取一位或多位十六进制数字
-		// \xWXYZ = ((W*16+X)*16+Y)*16+Z
-		for (; isxdigit(*P); P++) {
-			C = (C << 4) + fromHex(*P);
-		}
-		*NewPos = P;
-		return C;
-	}
+    int C = 0;
+    // 读取一位或多位十六进制数字
+    // \xWXYZ = ((W*16+X)*16+Y)*16+Z
+    for (; isxdigit(*P); P++)
+      C = (C << 4) + fromHex(*P);
+    *NewPos = P;
+    return C;
+  }
 
-	*NewPos = P + 1;
+  *NewPos = P + 1;
 
   switch (*P) {
   case 'a': // 响铃（警报）
@@ -269,66 +256,6 @@ static char *stringLiteralEnd(char *P) {
   return P;
 }
 
-static Token *readCharLiteral(char *Start) {
-	char *P = Start + 1;
-	// 解析字符为 \0 的情况
-	if (*P == '\0')
-		errorAt(Start, "unclosed char literal");
-
-	// 解析字符
-	char C;
-	// 转义
-	if (*P == '\\')
-		C = readEscapedChar(&P, P + 1);
-	else
-		C = *P++;
-
-	// strchr返回以 ' 开头的字符串，若无则为NULL
-	char *End = strchr(P, '\'');
-	if (!End) {
-		errorAt(P, "unclosed char literal");
-	}
-
-	// 构造一个NUM的终结符，值为C的数值
-	Token *Tok = newToken(TK_NUM, Start, End + 1);
-	Tok->Val = C;
-	return Tok;
-}
-
-// 读取数字字面值
-static Token *readIntLiteral(char *Start) {
-	char *P = Start;
-
-	// 读取二、八、十、十六进制
-	// 默认为十进制
-	int Base = 10;
-
-	if (!strncasecmp(P, "0x", 2) && isxdigit(P[2])) {
-		// 十六进制
-		P += 2;
-		Base = 16;
-	} else if (!strncasecmp(P, "0b", 2) && (P[2] == '0' || P[2] == '1')) {
-		// 二进制
-		P += 2;
-		Base = 2;
-	} else if (*P == '0') {
-		// 八进制
-		Base = 8;
-	}
-
-	// 将字符串转换为Base进制的数字
-	long Val = strtoul(P, &P, Base);
-	// 数字理应处理完了，如果还有字符说明数字有问题
-	if (isalnum(*P)) {
-		errorAt(P, "invalid digit");
-	}
-
-	// 构造NUM的终结符
-	Token *Tok = newToken(TK_NUM, Start, P);
-	Tok->Val = Val;
-	return Tok;
-}
-
 static Token *readStringLiteral(char *Start) {
   // 读取到字符串字面量的右引号
   char *End = stringLiteralEnd(Start + 1);
@@ -355,32 +282,96 @@ static Token *readStringLiteral(char *Start) {
   return Tok;
 }
 
-// 为所有Token计算行号
-static void addLineNo(Token *Tok) {
-	char *P = CurrentInput;
-	int N = 1;
+// 读取字符字面量
+static Token *readCharLiteral(char *Start) {
+  char *P = Start + 1;
+  // 解析字符为 \0 的情况
+  if (*P == '\0')
+    errorAt(Start, "unclosed char literal");
 
-	do {
-		if (P == Tok->Loc) {
-			Tok->LineNo = N;
-			Tok = Tok->Next;
-		}
+  // 解析字符
+  char C;
+  // 转义
+  if (*P == '\\')
+    C = readEscapedChar(&P, P + 1);
+  else
+    C = *P++;
 
-		if (*P == '\n') {
-			N++;
-		}
-	} while(*P++);
+  // strchr返回以 ' 开头的字符串，若无则为NULL
+  char *End = strchr(P, '\'');
+  if (!End)
+    errorAt(P, "unclosed char literal");
+
+  // 构造一个NUM的终结符，值为C的数值
+  Token *Tok = newToken(TK_NUM, Start, End + 1);
+  Tok->Val = C;
+  return Tok;
 }
 
-// 终结符解析
-Token *tokenize(char *FileName, char *P) {
-	CurrentFileName = FileName;
-	CurrentInput = P;
+// 读取数字字面量
+static Token *readIntLiteral(char *Start) {
+  char *P = Start;
+
+  // 读取二、八、十、十六进制
+  // 默认为十进制
+  int Base = 10;
+  // 比较两个字符串前2个字符，忽略大小写，并判断是否为数字
+  if (!strncasecmp(P, "0x", 2) && isxdigit(P[2])) {
+    // 十六进制
+    P += 2;
+    Base = 16;
+  } else if (!strncasecmp(P, "0b", 2) && (P[2] == '0' || P[2] == '1')) {
+    // 二进制
+    P += 2;
+    Base = 2;
+  } else if (*P == '0') {
+    // 八进制
+    Base = 8;
+  }
+
+  // 将字符串转换为Base进制的数字
+  long Val = strtoul(P, &P, Base);
+  if (isalnum(*P))
+    errorAt(P, "invalid digit");
+
+  // 构造NUM的终结符
+  Token *Tok = newToken(TK_NUM, Start, P);
+  Tok->Val = Val;
+  return Tok;
+}
+
+// 将名为“return”的终结符转为KEYWORD
+static void convertKeywords(Token *Tok) {
+  for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
+    if (isKeyword(T))
+      T->Kind = TK_KEYWORD;
+  }
+}
+
+// 为所有Token添加行号
+static void addLineNumbers(Token *Tok) {
+  char *P = CurrentInput;
+  int N = 1;
+
+  do {
+    if (P == Tok->Loc) {
+      Tok->LineNo = N;
+      Tok = Tok->Next;
+    }
+    if (*P == '\n')
+      N++;
+  } while (*P++);
+}
+
+// 终结符解析，文件名，文件内容
+Token *tokenize(char *Filename, char *P) {
+  CurrentFilename = Filename;
+  CurrentInput = P;
   Token Head = {};
   Token *Cur = &Head;
 
   while (*P) {
-		// 跳过行注释
+    // 跳过行注释
     if (startsWith(P, "//")) {
       P += 2;
       while (*P != '\n')
@@ -398,7 +389,6 @@ Token *tokenize(char *FileName, char *P) {
       continue;
     }
 
-
     // 跳过所有空白符如：空格、回车
     if (isspace(*P)) {
       ++P;
@@ -407,57 +397,48 @@ Token *tokenize(char *FileName, char *P) {
 
     // 解析数字
     if (isdigit(*P)) {
-      /* // 初始化，类似于C++的构造函数 */
-      /* // 我们不使用Head来存储信息，仅用来表示链表入口，这样每次都是存储在Cur->Next */
-      /* // 否则下述操作将使第一个Token的地址不在Head中。 */
-      /* Cur->Next = newToken(TK_NUM, P, P); */
-
-			// 读取数字字面值
-			Cur->Next = readIntLiteral(P);
-
+      // 读取数字字面量
+      Cur->Next = readIntLiteral(P);
       // 指针前进
       Cur = Cur->Next;
-			P += Cur->Len;
-      /* const char *OldPtr = P; */
-      /* Cur->Val = strtoul(P, &P, 10); */
-      /* Cur->Len = P - OldPtr; */
+      P += Cur->Len;
       continue;
     }
 
-		if (*P == '"') {
-			Cur->Next = readStringLiteral(P);
-			Cur = Cur->Next;
-			P += Cur->Len;
-			continue;
-		}
+    // 解析字符串字面量
+    if (*P == '"') {
+      Cur->Next = readStringLiteral(P);
+      Cur = Cur->Next;
+      P += Cur->Len;
+      continue;
+    }
 
-		if (*P == '\'') {
-			Cur->Next = readCharLiteral(P);
-			Cur = Cur->Next;
-			P += Cur->Len;
-			continue;
-		}
+    // 解析字符字面量
+    if (*P == '\'') {
+      Cur->Next = readCharLiteral(P);
+      Cur = Cur->Next;
+      P += Cur->Len;
+      continue;
+    }
 
-		// 解析标记符=解析变量
-		// 或解析关键字
-		// [a-zA-Z_][a-zA-Z0-9_]*
-		if(isIdent1(*P)) {
-			char *Start = P;
-			do {
-				++P;
-			} while(isIdent2(*P));
-			// 循环最后会多++一次，所以这里不用P+1
-			Cur->Next = newToken(TK_IDENT, Start, P);
-			Cur = Cur->Next;
-			continue;
-		}
+    // 解析标记符或关键字
+    // [a-zA-Z_][a-zA-Z0-9_]*
+    if (isIdent1(*P)) {
+      char *Start = P;
+      do {
+        ++P;
+      } while (isIdent2(*P));
+      Cur->Next = newToken(TK_IDENT, Start, P);
+      Cur = Cur->Next;
+      continue;
+    }
 
     // 解析操作符
-    /* if (*P == '+' || *P == '-') { */
-		int PunctLen = readPunct(P);
+    int PunctLen = readPunct(P);
     if (PunctLen) {
       Cur->Next = newToken(TK_PUNCT, P, P + PunctLen);
       Cur = Cur->Next;
+      // 指针前进Punct的长度位
       P += PunctLen;
       continue;
     }
@@ -468,65 +449,60 @@ Token *tokenize(char *FileName, char *P) {
 
   // 解析结束，增加一个EOF，表示终止符。
   Cur->Next = newToken(TK_EOF, P, P);
-
-	addLineNo(Head.Next);
-
-	// 由于解析标记符和解析关键字没有区别，所以我们最后判断以下关键字
-	convertKeyWords(Head.Next);
-
+  // 为所有Token添加行号
+  addLineNumbers(Head.Next);
+  // 将所有关键字的终结符，都标记为KEYWORD
+  convertKeywords(Head.Next);
   // Head无内容，所以直接返回Next
   return Head.Next;
 }
 
+// 返回指定文件的内容
 static char *readFile(char *Path) {
-	FILE *FP;
+  FILE *FP;
 
-	if (strcmp(Path, "-") == 0) {
-		// if filename is - , then read from stream
-		FP = stdin;
-	} else {
-		FP = fopen(Path, "r");
-		if (!FP) {
-			// errno is the last error code within system
-			// strerror function print error message
-			error("can not open %s: %s", Path, strerror(errno));
-		}
-	}
+  if (strcmp(Path, "-") == 0) {
+    // 如果文件名是"-"，那么就从输入中读取
+    FP = stdin;
+  } else {
+    FP = fopen(Path, "r");
+    if (!FP)
+      // errno为系统最后一次的错误代码
+      // strerror以字符串的形式输出错误代码
+      error("cannot open %s: %s", Path, strerror(errno));
+  }
 
-	char *Buf;
-	size_t BufLen;
-	FILE *Out = open_memstream(&Buf, &BufLen);
+  // 要返回的字符串
+  char *Buf;
+  size_t BufLen;
+  FILE *Out = open_memstream(&Buf, &BufLen);
 
-	// read the whole file
-	while (true) {
-		char Buf2[4096];
-		// fread function reads from file stream to byte array
-		// params: byte array, array element size, array max len, file pointer
-		int N = fread(Buf2, 1, sizeof(Buf2), FP);
-		if (N == 0) {
-			break;
-		}
-		// params: byte array, array element size, actual array len, file pointer
-		fwrite(Buf2, 1, N, Out);
-	}
+  // 读取整个文件
+  while (true) {
+    char Buf2[4096];
+    // fread从文件流中读取数据到数组中
+    // 数组指针Buf2，数组元素大小1，数组元素个数4096，文件流指针
+    int N = fread(Buf2, 1, sizeof(Buf2), FP);
+    if (N == 0)
+      break;
+    // 数组指针Buf2，数组元素大小1，实际元素个数N，文件流指针
+    fwrite(Buf2, 1, N, Out);
+  }
 
-	// finished reading file
-	if (FP != stdin) {
-		fclose(FP);
-	}
+  // 对文件完成了读取
+  if (FP != stdin)
+    fclose(FP);
 
-	fflush(Out);
-
-	// make sure last line ended by \n
-	// keep consistency with previous code
-	if (BufLen == 0 || Buf[BufLen - 1] != '\n') {
-		fputc('\n', Out);
-	}
-	fputc('\0', Out);
-	fclose(Out);
-	return Buf;
+  // 刷新流的输出缓冲区，确保内容都被输出到流中
+  fflush(Out);
+  // 确保最后一行以'\n'结尾
+  if (BufLen == 0 || Buf[BufLen - 1] != '\n')
+    // 将字符输出到流中
+    fputc('\n', Out);
+  fputc('\0', Out);
+  fclose(Out);
+  return Buf;
 }
 
-Token *tokenizeFile(char *Path) {
-	return tokenize(Path, readFile(Path));
-}
+// 对文件进行词法分析
+Token *tokenizeFile(char *Path) { return tokenize(Path, readFile(Path)); }

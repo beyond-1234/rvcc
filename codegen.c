@@ -673,26 +673,68 @@ static void emitData(Obj *Prog) {
 
 		printLine("  # 数据段标签");
     printLine("  .data");
-    printLine("%s:", Var->Name);
+    // 判断是否有初始值
+    if (Var->InitData) {
+      printLine("%s:", Var->Name);
+      Relocation *Rel = Var->Rel;
+      int Pos = 0;
+      while (Pos < Var->Ty->Size) {
+        if (Rel && Rel->Offset == Pos) {
+          // 使用其他变量进行初始化
+          printLine("  # %s全局变量", Var->Name);
+          printLine("  .quad %s%+ld", Rel->Label, Rel->Addend);
+          Rel = Rel->Next;
+          Pos += 8;
+        } else {
+          // 打印出字符串的内容，包括转义字符
+          printLine("  # 字符串字面量");
+          char C = Var->InitData[Pos++];
+          if (isprint(C))
+            printLine("  .byte %d\t# %c", C, C);
+          else
+            printLine("  .byte %d", C);
+        }
+      }
+    } else {
+      printLine("\n  # 全局段%s", Var->Name);
+      printLine("  .globl %s", Var->Name);
+      printLine("%s:", Var->Name);
+      printLine("  # 全局变量零填充%d位", Var->Ty->Size);
+      printLine("  .zero %d", Var->Ty->Size);
+    }
+  }
 
-		if (Var->InitData) {
-			printLine("  # 字符串字面量");
-			for (int I = 0; I < Var->Ty->Size; ++I) {
-				char C = Var->InitData[I];
-				if (isprint(C)) {
-					printLine("  .byte %d\t# %c", C, C);
-				} else {
-					printLine("  .byte %d", C);
-				}
-			}
-		} else {
-				printLine("  # 全局段%s", Var->Name);
-				printLine("  .globl %s", Var->Name);
-				printLine("%s:", Var->Name);
-				printLine("  # 全局变量零填充%d位", Var->Ty->Size);
-				printLine("  .zero %d", Var->Ty->Size);
-		}
-	}
+		/* if (Var->InitData) { */
+		/* 	printLine("%s:", Var->Name); */
+		/* 	Relocation *Rel = Var->Rel; */
+		/* 	int Pos = 0; */
+		/* 	while (Pos < Var->Ty->Size) { */
+		/* 		if (Rel && Rel->Offset == Pos) { */
+		/* 			// 使用其他变量初始化 */
+		/* 			printLine("  # %s全局变量", Var->Name); */
+		/* 			printLine("  .quad %s%+ld", Rel->Label, Rel->Addend); */
+		/* 			Rel = Rel->Next; */
+		/* 			Pos += 8; */
+		/* 		} else { */
+		/* 			// 打印字符串的内容，包括转义字符 */
+		/* 			printLine("  # 字符串字面量"); */
+		/* 			char C = Var->InitData[Pos++]; */
+		/* 			if (isprint(C)) { */
+		/* 				printLine("  .byte %d\t# %c", C, C); */
+		/* 			} else { */
+		/* 				printLine("  .byte %d", C); */
+		/* 			} */
+
+		/* 		} */
+		/* 	} */
+		/* } else { */
+		/* 		printLine("  # 全局段%s", Var->Name); */
+		/* 		printLine("  .globl %s", Var->Name); */
+		/* 		printLine("%s:", Var->Name); */
+		/* 		printLine("  # 全局变量零填充%d位", Var->Ty->Size); */
+		/* 		printLine("  .zero %d", Var->Ty->Size); */
+		/* } */
+	/* } */
 }
 
 // 将整形寄存器的值存入栈中
