@@ -319,27 +319,6 @@ static void genExpr(Node *Nod) {
 				printLine("  sb zero, %d(fp)", Nod->Var->Offset + I);
 			return;
 		}
-		/* case ND_MEMZERO: { */
-		/* 	printLine("  # 对%s的内存%d(fp)清零%d位", Nod->Var->Name, Nod->Var->Offset, Nod->Var->Ty->Size); */
-		/* 	// 对栈内变量所占用的每个字节进行清零 */
-		/* 	int I = 0; */
-		/* 	while (I + 8 < Nod->Var->Ty->Size) { */
-		/* 		printLine("  sd zero, %d(fp)", Nod->Var->Offset + I); */
-		/* 		I += 8; */
-		/* 	} */
-		/* 	while (I + 4 < Nod->Var->Ty->Size) { */
-		/* 		printLine("  sw zero, %d(fp)", Nod->Var->Offset + I); */
-		/* 		I += 4; */
-		/* 	} */
-		/* 	while (I + 2 < Nod->Var->Ty->Size) { */
-		/* 		printLine("  sh zero, %d(fp)", Nod->Var->Offset + I); */
-		/* 		I += 2; */
-		/* 	} */
-		/* 	while (I + 1 < Nod->Var->Ty->Size) { */
-		/* 		printLine("  sb zero, %d(fp)", Nod->Var->Offset + I); */
-		/* 		I += 1; */
-		/* 	} */
-		/* } */
 		// 三元表达式
 		case ND_COND: {
 			int C = count();
@@ -703,38 +682,6 @@ static void emitData(Obj *Prog) {
       printLine("  .zero %d", Var->Ty->Size);
     }
   }
-
-		/* if (Var->InitData) { */
-		/* 	printLine("%s:", Var->Name); */
-		/* 	Relocation *Rel = Var->Rel; */
-		/* 	int Pos = 0; */
-		/* 	while (Pos < Var->Ty->Size) { */
-		/* 		if (Rel && Rel->Offset == Pos) { */
-		/* 			// 使用其他变量初始化 */
-		/* 			printLine("  # %s全局变量", Var->Name); */
-		/* 			printLine("  .quad %s%+ld", Rel->Label, Rel->Addend); */
-		/* 			Rel = Rel->Next; */
-		/* 			Pos += 8; */
-		/* 		} else { */
-		/* 			// 打印字符串的内容，包括转义字符 */
-		/* 			printLine("  # 字符串字面量"); */
-		/* 			char C = Var->InitData[Pos++]; */
-		/* 			if (isprint(C)) { */
-		/* 				printLine("  .byte %d\t# %c", C, C); */
-		/* 			} else { */
-		/* 				printLine("  .byte %d", C); */
-		/* 			} */
-
-		/* 		} */
-		/* 	} */
-		/* } else { */
-		/* 		printLine("  # 全局段%s", Var->Name); */
-		/* 		printLine("  .globl %s", Var->Name); */
-		/* 		printLine("%s:", Var->Name); */
-		/* 		printLine("  # 全局变量零填充%d位", Var->Ty->Size); */
-		/* 		printLine("  .zero %d", Var->Ty->Size); */
-		/* } */
-	/* } */
 }
 
 // 将整形寄存器的值存入栈中
