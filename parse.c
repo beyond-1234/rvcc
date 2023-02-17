@@ -2082,6 +2082,13 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
 		}
 	}
 
+	// 解析灵活数组成员，数组大小设为0
+	// 灵活数组为 类型为数组 的 结构体的最后一个成员
+	// 他在初始化时不占用内存空间，且赋值时必须使用malloc函数在堆上开辟内存空间
+	if (Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0) {
+		Cur->Ty = arrayOf(Cur->Ty->Base, 0);
+	}
+
 	*Rest = Tok->Next;
 	Ty->Mems = Head.Next;
 }
