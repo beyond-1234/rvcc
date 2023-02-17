@@ -103,7 +103,7 @@ static bool isTypename(Token *Tok);
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident ("{" enumList? "}")?
-// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)*
+// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)* ","?
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
@@ -117,12 +117,12 @@ static bool isTypename(Token *Tok);
 // stringInitializer = stringLiteral
 //
 // arrayInitializer = arrayInitializer1 | arrayInitializer2
-// arrayInitializer1 = "{" initializer ("," initializer)* "}"
-// arrayIntializer2 = initializer ("," initializer)*
+// arrayInitializer1 = "{" initializer ("," initializer)* ","? "}"
+// arrayIntializer2 = initializer ("," initializer)* ","?
 
 // structInitializer = structInitializer1 | structInitializer2
-// structInitializer1 = "{" initializer ("," initializer)* "}"
-// structIntializer2 = initializer ("," initializer)*
+// structInitializer1 = "{" initializer ("," initializer)* ","? "}"
+// structIntializer2 = initializer ("," initializer)* ","?
 //
 // unionInitializer = "{" initializer "}"
 // stmt = return语句返回;隔开的expr表达式 或
@@ -704,6 +704,29 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 	return Ty;
 }
 
+// 判断是否终结符匹配到了结尾
+static bool isEnd(Token *Tok) {
+	// "}" | ",}"
+	return equal(Tok, "}") || (equal(Tok, ",") && equal(Tok->Next, "}"));
+}
+
+// 消耗掉结尾的终结符
+// "}" | ",}"
+static bool consumeEnd(Token **Rest, Token *Tok) {
+	if (equal(Tok, "}")) {
+		*Rest = Tok->Next;
+		return true;
+	}
+
+	if (equal(Tok, ",") && equal(Tok->Next, "}")) {
+		*Rest = Tok->Next->Next;
+		return true;
+	}
+
+	// 没有消耗到指定字符
+	return false;
+}
+
 static Type *enumSpecifier(Token **Rest, Token *Tok) {
 	Type *Ty = enumType();
 
@@ -736,7 +759,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok) {
 	// enumList 读取enum列表
 	int I = 0;
 	int Val = 0;
-	while (!equal(Tok, "}")) {
+	while (!consumeEnd(Rest, Tok)) {
 		if (I++ > 0) {
 			Tok = skip(Tok, ",");
 		}
@@ -756,8 +779,6 @@ static Type *enumSpecifier(Token **Rest, Token *Tok) {
 		// 但是此处并没对重复赋值的情况做检查
 		S->EnumVal = Val++;
 	}
-
-	*Rest = Tok->Next;
 
 	if (Tag) {
 		pushTagScope(Tag, Ty);
@@ -978,7 +999,7 @@ static int countArrayInitElement(Token *Tok, Type *Ty) {
 	int I = 0;
 
 	// 遍历所有匹配的项
-	for (; !equal(Tok, "}"); I++) {
+	for (; !consumeEnd(&Tok, Tok); I++) {
 		if (I > 0) {
 			Tok = skip(Tok, ",");
 		}
@@ -1001,7 +1022,7 @@ static void arrayInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
 	}
 
 	// 遍历变量
-	for (int I = 0; !consume(Rest, Tok, "}"); I++) {
+	for (int I = 0; !consumeEnd(Rest, Tok); I++) {
 		if (I > 0) {
 			Tok = skip(Tok, ",");
 		}
@@ -1023,7 +1044,7 @@ static void arrayInitializer2(Token **Rest, Token *Tok, Initializer *Init) {
 	}
 
 	// 遍历变量
-	for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) {
+	for (int I = 0; I < Init->Ty->ArrayLen && !isEnd(Tok); I++) {
 		if (I > 0) {
 			Tok = skip(Tok, ",");
 		}
@@ -1040,7 +1061,7 @@ static void structInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
 	// 成员变量的链表
 	Member *Mem = Init->Ty->Mems;
 
-	while (!consume(Rest, Tok, "}")) {
+	while (!consumeEnd(Rest, Tok)) {
 		// Mem 未指向Init->Ty->Mems，则说明Mem进行过Next操作，就不是第一个
 		if (Mem != Init->Ty->Mems) {
 			Tok = skip(Tok, ",");
@@ -1061,7 +1082,7 @@ static void structInitializer2(Token **Rest, Token *Tok, Initializer *Init) {
 	bool First = true;
 
 	// 遍历所有成员变量
-	for (Member *Mem = Init->Ty->Mems; Mem && !equal(Tok, "}"); Mem = Mem->Next) {
+	for (Member *Mem = Init->Ty->Mems; Mem && !isEnd(Tok); Mem = Mem->Next) {
 		if (!First) {
 			Tok = skip(Tok, ",");
 		}
@@ -1077,6 +1098,8 @@ static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
 	if (equal(Tok, "{")) {
 		// 存在括号的情况
 		initializer2(&Tok, Tok->Next, Init->Children[0]);
+		// ","?
+		consume(&Tok, Tok, ",");
 		*Rest = skip(Tok, "}");
 	} else {
 		initializer2(Rest, Tok, Init->Children[0]);
