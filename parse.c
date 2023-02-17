@@ -1128,6 +1128,12 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 		return;
 	}
 
+	if (equal(Tok, "{")) {
+		initializer2(&Tok, Tok->Next, Init);
+		*Rest = skip(Tok, "}");
+		return;
+	}
+
 	// assign
 	// 为节点存储对应的表达式
 	Init->Expr = assign(Rest, Tok);
