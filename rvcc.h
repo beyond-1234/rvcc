@@ -203,6 +203,9 @@ struct Type {
 	// 结构体成员
 	Member *Mems;
 
+	// 是否为灵活的
+	bool IsFlexible;
+
 	Type *ReturnTy;		// 函数返回的类型
 	Type *Params;			// 形参列表
 	Type *Next;				// 下一类型

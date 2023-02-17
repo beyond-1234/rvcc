@@ -1,4 +1,5 @@
 #include "rvcc.h"
+#include <stdlib.h>
 
 // 局部和全局变量或是typedef, enum常量的域
 typedef struct VarScope VarScope;
@@ -309,7 +310,17 @@ static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
 
 		// 遍历子项进行赋值
 		for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
-			Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+			// 判断结构体成员是否是灵活的，同时成员也是灵活的并且是最后一个
+			// 在这里直接构造，避免对灵活数组的解析
+			if (IsFlexible && Ty->IsFlexible && !Mem->Next) {
+				Initializer *Child = calloc(1, sizeof(Initializer));
+				Child->Ty = Mem->Ty;
+				Child->IsFlexible = true;
+				Init->Children[Mem->Idx] = Child;
+			} else {
+				// 非灵活的子项进行赋值
+				Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+			}
 		}
 		return Init;
 	}
@@ -1162,12 +1173,53 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
 	Init->Expr = assign(Rest, Tok);
 }
 
+// 复制结构体的类型
+static Type *copyStructType(Type *Ty) {
+	// 复制结构体的类型
+	Ty = copyType(Ty);
+
+	// 赋值结构体成员的类型
+	Member Head = {};
+	Member *Cur = &Head;
+
+	// 遍历成员
+	for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+		Member *M = calloc(1, sizeof(Member));
+		*M = *Mem;
+		Cur->Next = M;
+		Cur = Cur->Next;
+	}
+
+	Ty->Mems = Head.Next;
+	return Ty;
+}
+
 // 初始化器
 static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy) {
 	// 新建一个解析了类型的初始化器
 	Initializer *Init = newInitializer(Ty, true);
 	// 解析需要赋值到Init中
 	initializer2(Rest, Tok, Init);
+
+	if ((Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) && Ty->IsFlexible) {
+		// 复制结构体的类型
+		Ty = copyStructType(Ty);
+
+		Member *Mem = Ty->Mems;
+		// 遍历到最后一个成员
+		while (Mem->Next) {
+			Mem = Mem->Next;
+		}
+		// 灵活数组类型替换为实际的数组类型
+		Mem->Ty = Init->Children[Mem->Idx]->Ty;
+		// 增加结构体的类型大小
+		Ty->Size += Mem->Ty->Size;
+
+		// 将新类型传回变量
+		*NewTy = Ty;
+		return Init;
+	}
+
 	// 将新类型传回变量
 	*NewTy = Init->Ty;
 	return Init;
@@ -2087,6 +2139,8 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
 	// 他在初始化时不占用内存空间，且赋值时必须使用malloc函数在堆上开辟内存空间
 	if (Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0) {
 		Cur->Ty = arrayOf(Cur->Ty->Base, 0);
+		// 设置类型为灵活的
+		Ty->IsFlexible = true;
 	}
 
 	*Rest = Tok->Next;
