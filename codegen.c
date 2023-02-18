@@ -646,7 +646,8 @@ static void genStmt(Node *Nod) {
 // 生成全局变量的汇编代码
 static void emitData(Obj *Prog) {
 	for (Obj *Var = Prog; Var; Var = Var->Next) {
-		if (Var->IsFunction) {
+		// 跳过函数或者无定义的变量
+		if (Var->IsFunction || !Var->IsDefinition) {
 			continue;
 		}
 
