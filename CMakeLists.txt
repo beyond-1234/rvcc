@@ -13,4 +13,6 @@ add_executable ( rvcc
 )
 
 # 编译参数
-set (CMAKE_C_FLAGS "-std=c11 -g -fno-common")
+# set (CMAKE_C_FLAGS "-std=c11 -g -fno-common")
+target_compile_options(rvcc PRIVATE -std=c11 -g -fno-common)
+target_link_libraries(rvcc m)

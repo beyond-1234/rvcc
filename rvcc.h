@@ -12,6 +12,7 @@
 #include <string.h>
 #include <errno.h>
 #include <strings.h>
+#include <math.h>
 
 // 宏展开函数
 // 括号是为了保证内部表达式作为整体去求值

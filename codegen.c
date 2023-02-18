@@ -652,6 +652,11 @@ static void emitData(Obj *Prog) {
 
 		printLine("\n  # 全局段%s", Var->Name);
 		printLine("  .globl %s", Var->Name);
+		printLine("  # 对齐全局变量");
+		if (!Var->Ty->Align) {
+			error("Align can not be 0!");
+		}
+		printLine("  .align %d", (int)log2(Var->Ty->Align));
     // 判断是否有初始值
     if (Var->InitData) {
 			printLine("  # 数据段标签");

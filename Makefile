@@ -1,5 +1,7 @@
 # C编译器参数：使用C11标准，生成debug信息，禁止将未初始化的全局变量放入到common段
 CFLAGS=-std=c11 -g -fno-common
+# 使用math库
+LDFLAGS=-lm
 # 指定C编译器，来构建项目
 CC=gcc
 # C源代码文件，表示所有的.c结尾的文件
@@ -11,7 +13,7 @@ OBJS=$(SRCS:.c=.o)
 # $@表示目标文件，此处为rvcc，$^表示依赖文件，此处为$(OBJS)
 rvcc: $(OBJS)
 # 将多个*.o文件编译为rvcc
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # 所有的可重定位文件依赖于rvcc.h的头文件
 $(OBJS): rvcc.h
