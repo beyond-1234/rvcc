@@ -195,7 +195,7 @@ static void assignLVarOffsets(Obj *Prog) {
 			// 每个变量分配相应字节
 			Offset += Var->Ty->Size;
 			// 对齐变量
-			Offset = alignTo(Offset, Var->Ty->Align);
+			Offset = alignTo(Offset, Var->Align);
 			// 为每个变量赋一个编译量，或者说是栈中地址
 			Var->Offset = -Offset;
 		}
@@ -657,7 +657,7 @@ static void emitData(Obj *Prog) {
 		if (!Var->Ty->Align) {
 			error("Align can not be 0!");
 		}
-		printLine("  .align %d", (int)log2(Var->Ty->Align));
+		printLine("  .align %d", (int)log2(Var->Align));
     // 判断是否有初始值
     if (Var->InitData) {
 			printLine("  # 数据段标签");
