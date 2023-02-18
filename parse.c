@@ -108,7 +108,7 @@ static bool isTypename(Token *Tok);
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
-// funcParams = (param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)*)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
 // declaration = declspec (declarator ("=" initializer)?
@@ -798,6 +798,12 @@ static Type *enumSpecifier(Token **Rest, Token *Tok) {
 }
 
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
+	// void param
+	if (equal(Tok, "void") && equal(Tok->Next, ")")) {
+		*Rest = Tok->Next->Next;
+		return funcType(Ty);
+	}
+
 	Type Head = {};
 	Type *Cur = &Head;
 

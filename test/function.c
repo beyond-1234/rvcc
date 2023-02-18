@@ -1,6 +1,12 @@
 #include "test.h"
 
-int ret3() {
+int ret3NoVoid() {
+  return 3;
+  return 5;
+}
+
+// [113] 支持void作为形参
+int ret3(void) {
   return 3;
   return 5;
 }
