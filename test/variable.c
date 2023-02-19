@@ -15,9 +15,12 @@ int main() {
   ASSERT(3, ({ int foo=3; foo; }));
   ASSERT(8, ({ int foo123=3; int bar=5; foo123+bar; }));
 
+  // [56] 将int的大小由8改为4
+  ASSERT(4, ({ int x; sizeof(x); }));
+  ASSERT(4, ({ int x; sizeof x; }));
   // [30] 支持 sizeof
   ASSERT(8, ({ int *x; sizeof(x); }));
-	ASSERT(16, ({ int x[4]; sizeof(x); }));
+  ASSERT(16, ({ int x[4]; sizeof(x); }));
   ASSERT(48, ({ int x[3][4]; sizeof(x); }));
   ASSERT(16, ({ int x[3][4]; sizeof(*x); }));
   ASSERT(4, ({ int x[3][4]; sizeof(**x); }));
@@ -50,21 +53,17 @@ int main() {
   ASSERT(2, ({ int x=2; { int x=3; } int y=4; x; }));
   ASSERT(3, ({ int x=2; { x=3; } x; }));
 
-	 // [51] 对齐局部变量
+  // [51] 对齐局部变量
   ASSERT(7, ({ int x; int y; char z; char *a=&y; char *b=&z; b-a; }));
   ASSERT(1, ({ int x; char y; int z; char *a=&y; char *b=&z; b-a; }));
 
-	// [56] 将int的大小由8改为4
-  ASSERT(4, ({ int x; sizeof(x); }));
-  ASSERT(4, ({ int x; sizeof x; }));
+  // [57] 支持long类型
+  ASSERT(8, ({ long x; sizeof(x); }));
 
-	 // [57] 支持long类型
-	ASSERT(8, ({ long x; sizeof(x); }));
-
-	// [58] 支持short类型
+  // [58] 支持short类型
   ASSERT(2, ({ short x; sizeof(x); }));
 
-	// [59] 支持嵌套类型声明符
+  // [59] 支持嵌套类型声明符
   ASSERT(24, ({ char *x[3]; sizeof(x); }));
   ASSERT(8, ({ char (*x)[3]; sizeof(x); }));
   ASSERT(1, ({ char (x); sizeof(x); }));

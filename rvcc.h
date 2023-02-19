@@ -81,7 +81,7 @@ struct Obj {
 	char *Name;				// 变量名
 	Type *Ty;					// 变量的类型
 	bool isLocal;			// 是局部变量或全局变量
-	bool Align;				// 对齐量
+	int Align;				// 对齐量
 	int Offset;				// fp的偏移量
 	bool IsFunction;	// 函数或全局变量
 	bool IsDefinition;// 是否为函数签名

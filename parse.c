@@ -661,7 +661,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			}
 
 			// typedef 与 static 或 extern 不该一起使用
-			if (Attr->IsStatic && (Attr->IsTypedef || Attr->IsExtern)) {
+			if (Attr->IsTypedef && (Attr->IsStatic || Attr->IsExtern)) {
 				errorTok(Tok, "typedef and static/extern my not be used together");
 			}
 
@@ -2173,12 +2173,13 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
 		// declspec
 		VarAttr Attr = {};
 		Type *BaseTy = declspec(&Tok, Tok, &Attr);
-		int I = 0;
+		int First = true;
 
 		while (!consume(&Tok, Tok, ";")) {
-			if (I++) {
+			if (!First) {
 				Tok = skip(Tok, ",");
 			}
+			First = false;
 
 			Member *Mem = calloc(1, sizeof(Member));
 			// declarator
