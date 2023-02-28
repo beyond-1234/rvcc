@@ -131,7 +131,7 @@ static bool isTypename(Token *Tok);
 // structIntializer2 = initializer ("," initializer)* ","?
 //
 // unionInitializer = "{" initializer "}"
-// stmt = return语句返回;隔开的expr表达式 或
+// stmt = return expr? ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "switch" "(" expr ")" stmt
 //        | "case" constExpr ":" stmt
@@ -1466,6 +1466,12 @@ static Node *stmt(Token **Rest, Token *Tok) {
 	// return expr ;
 	if(equal(Tok, "return")) {
 		Node *Nod = newNode(ND_RETURN, Tok);
+
+		// 空返回语句
+		if (consume(Rest, Tok->Next, ";")) {
+			return Nod;
+		}
+
 		Node *Exp = expr(&Tok, Tok->Next);
 		*Rest = skip(Tok, ";");
 
