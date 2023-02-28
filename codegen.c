@@ -655,7 +655,16 @@ static void emitData(Obj *Prog) {
 		}
 
 		printLine("\n  # 全局段%s", Var->Name);
-		printLine("  .globl %s", Var->Name);
+		if (Var->IsStatic) {
+			// 静态全局变量只针对单个文件有效
+			printLine("\n  # static全局变量%s", Var->Name);
+			printLine("  .local %s", Var->Name);
+		} else {
+			// 非静态全局变量在多个文件中有效
+			printLine("\n  # 全局变量%s", Var->Name);
+			printLine("  .globl %s", Var->Name);
+		}
+
 		printLine("  # 对齐全局变量");
 		if (!Var->Ty->Align) {
 			error("Align can not be 0!");
