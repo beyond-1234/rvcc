@@ -996,6 +996,17 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) 
 		if (Ty->Kind == TY_VOID) {
 			errorTok(Tok, "variable declared void");
 		}
+
+		if (Attr && Attr->IsStatic) {
+			// 静态局部变量，把它当作匿名全局变量即可
+			Obj *Var = newAnonGVar(Ty);
+			pushScope(getIdent(Ty->Name))->Var = Var;
+			if (equal(Tok, "=")) {
+				GVarInitializer(&Tok, Tok->Next, Var);
+			}
+			continue;
+		}
+
     Obj *Var = newLVar(getIdent(Ty->Name), Ty);
 		// 读取是否存在变量的对齐值
 		if (Attr && Attr->Align) {
