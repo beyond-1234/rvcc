@@ -54,6 +54,7 @@ typedef enum {
 	ND_IF,				// IF语句
 	ND_FOR,				// FOR语句 和 while 语句
 	ND_RETURN,		// 返回
+	ND_DO,				// 用于 do while 语句
 	ND_SWITCH,		// switch 分支
 	ND_CASE,			// case
 	ND_BLOCK,			// { ... } 代码块

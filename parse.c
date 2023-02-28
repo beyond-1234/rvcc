@@ -138,6 +138,7 @@ static bool isTypename(Token *Tok);
 //        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
+//        | "do" stmt "while" "(" expr ")" ";"
 //        | "goto" ident ";"
 //        | "break" ";"
 //        | "continue" ";"
@@ -1661,6 +1662,34 @@ static Node *stmt(Token **Rest, Token *Tok) {
 		Gotos = Nod;
 
 		*Rest = skip(Tok->Next->Next, ";");
+		return Nod;
+	}
+
+	if (equal(Tok, "do")) {
+		Node *Nod = newNode(ND_DO, Tok);
+
+		// 存储此前的break和continue标签
+		char *Brk = BrkLabel;
+		char *Cont = ContLabel;
+		// 设置break和continue标签的名称
+		BrkLabel = Nod->BrkLabel = newUniqueName();
+		ContLabel = Nod->ContLabel = newUniqueName();
+
+		// do代码块内的语句
+		Nod->Then = stmt(&Tok, Tok->Next);
+
+		// 恢复此前的break和continue标签
+		BrkLabel = Brk;
+		ContLabel = Cont;
+
+		// while语句
+		Tok = skip(Tok, "while");
+		Tok = skip(Tok, "(");
+		// expr
+		// while 使用的条件表达式
+		Nod->Cond = expr(&Tok, Tok);
+		Tok = skip(Tok, ")");
+		*Rest = skip(Tok, ";");
 		return Nod;
 	}
 
