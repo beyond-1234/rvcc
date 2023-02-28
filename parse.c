@@ -166,7 +166,8 @@ static bool isTypename(Token *Tok);
 // structDecl = structUnionDecl
 // unionDecl = structUnionDecl
 // structUnionDecl = ident? ("{" structMembers)?
-// postfix = primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
@@ -2120,6 +2121,12 @@ static Node *cast(Token **Rest, Token *Tok) {
 		Token *Start = Tok;
 		Type *Ty = typename(&Tok, Tok->Next);
 		Tok = skip(Tok, ")");
+
+		// 避免解析复合字面值
+		if (equal(Tok, "{")) {
+			return unary(Rest, Start);
+		}
+
 		// 解析嵌套类型
 		Node *Nod = newCast(cast(Rest, Tok), Ty);
 		Nod->Tok = Start;
@@ -2340,6 +2347,29 @@ static Node *newIncDec(Node *Nod, Token *Tok, int Addend) {
 }
 
 static Node *postfix(Token **Rest, Token *Tok) {
+
+	// 支持复合字面量
+	if (equal(Tok, "(") && isTypename(Tok->Next)) {
+		// 复合字面值
+		Token *Start = Tok;
+		Type *Ty = typename(&Tok, Tok->Next);
+		Tok = skip(Tok, ")");
+
+		// 判断是否是局部变量
+		// 全局字面值当作匿名的全局变量
+		if (Scp->Next == NULL) {
+			Obj *Var = newAnonGVar(Ty);
+			GVarInitializer(Rest, Tok, Var);
+			return newVarNode(Var, Start);
+		}
+
+		// 局部字面值当作匿名的局部变量处理
+		Obj *Var = newLVar("", Ty);
+		Node *LHS = LVarInitializer(Rest, Tok, Var);
+		Node *RHS = newVarNode(Var, Tok);
+		return newBinary(ND_COMMA, LHS, RHS, Start);
+	}
+
 	Node *Nod = primary(&Tok, Tok);
 
 	while (true) {
