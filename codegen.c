@@ -396,8 +396,18 @@ static void genExpr(Node *Nod) {
 			}
 
 			// 调用函数
-			printLine("\n  # 调用函数%s", Nod->FuncName);
-			printLine("  call %s", Nod->FuncName);
+			if (Depth % 2 == 0) {
+				// 偶数深度，sp已经对齐16字节
+				printLine("\n  # 调用函数%s", Nod->FuncName);
+				printLine("  call %s", Nod->FuncName);
+			} else {
+				// 奇数深度对齐到16字节的边界
+				printLine("  # 对齐sp到16字节的边界，并调用%s函数", Nod->FuncName);
+				printLine("  addi sp, sp, -8");
+				printLine("  call %s", Nod->FuncName);
+				printLine("  addi sp, sp, 8");
+			}
+
 			return;
 		}
 		default:
