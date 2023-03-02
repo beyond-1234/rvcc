@@ -211,6 +211,7 @@ struct Type {
 
 	Type *ReturnTy;		// 函数返回的类型
 	Type *Params;			// 形参列表
+	bool IsVariadic;	// 是否为可变参数
 	Type *Next;				// 下一类型
 };
 

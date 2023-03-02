@@ -113,7 +113,7 @@ static bool isTypename(Token *Tok);
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
-// funcParams = ("void" | param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
 // declaration = declspec (declarator ("=" initializer)?
@@ -857,11 +857,20 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 
 	Type Head = {};
 	Type *Cur = &Head;
+	bool IsVariadic = false;
 
 	while (!equal(Tok, ")")) {
 		if (Cur != &Head) {
 			Tok  = skip(Tok, ",");
 		}
+
+		if (equal(Tok, "...")) {
+			IsVariadic = true;
+			Tok = Tok->Next;
+			skip(Tok, ")");
+			break;
+		}
+
 		Type *DeclarTy = declspec(&Tok, Tok, NULL);
 		DeclarTy = declarator(&Tok, Tok, DeclarTy);
 
@@ -881,6 +890,8 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 	Ty = funcType(Ty);
 	// 传递形参
 	Ty->Params = Head.Next;
+	// 传递可变参数
+	Ty->IsVariadic = IsVariadic;
 	*Rest = Tok->Next;
 	return Ty;
 }

@@ -1,7 +1,7 @@
 #define ASSERT(x, y) assert(x, y, #y)
 
 // [60] 支持函数声明
-int printf();
+int printf(char *fmt, ...);
 
 // [69] 对未定义或未声明的函数报错
 void assert(int expected, int actual, char *code);
@@ -9,3 +9,6 @@ void assert(int expected, int actual, char *code);
 // [107] 为全局变量处理联合体初始化
 int strcmp(char *p, char *q);
 int memcmp(char *p, char *q, long n);
+
+// [127] 允许调用可变参数函数
+int sprintf(char *buf, char *fmt, ...);
