@@ -105,6 +105,7 @@ static bool isTypename(Token *Tok);
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
 //					   | "_Alignas" ("(" typeName | constExpr ")")
+//					   | "signed"
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
@@ -544,7 +545,7 @@ static bool isTypename(Token *Tok) {
       "void", "_Bool", "char", "short",
 			"int", "long", "struct", "union",
 			"typedef", "enum", "static", "extern",
-			"_Alignas"
+			"_Alignas", "signed"
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -644,6 +645,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 		INT   = 1 << 8,
 		LONG  = 1 << 10,
 		OTHER = 1 << 12,
+		SIGNED= 1 << 13
 	};
 
 	Type *Ty = TyInt;
@@ -728,6 +730,8 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			Counter += INT;
 		} else if (equal(Tok, "long")) {
 			Counter += LONG;
+		} else if (equal(Tok, "signed")) {
+			Counter |= SIGNED;
 		} else {
 			unreachable();
 		}
@@ -740,19 +744,28 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 				Ty = TyBool;
 				break;
 			case CHAR:
+			case SIGNED + CHAR:
 				Ty = TyChar;
 				break;
 			case SHORT:
 			case SHORT + INT:
+			case SIGNED + SHORT:
+			case SIGNED + SHORT + INT:
 				Ty = TyShort;
 				break;
 			case INT:
+			case SIGNED:
+			case SIGNED + INT:
 				Ty = TyInt;
 				break;
 			case LONG:
 			case LONG + LONG:
 			case LONG + INT:
 			case LONG + LONG + INT:
+			case SIGNED + LONG:
+			case SIGNED + LONG + LONG:
+			case SIGNED + LONG + INT:
+			case SIGNED + LONG + LONG + INT:
 				Ty = TyLong;
 				break;
 			default:
