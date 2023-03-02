@@ -2687,6 +2687,13 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 	// 进入新的域
 	enterScope();
 
+	// 判断是否为可变参数
+	if (Ty->IsVariadic) {
+		// 开辟新的空间存储可变参数
+		// 这个可变参数空间存在局部变量中
+		Fn->VarArea = newLVar("__va_area__", arrayOf(TyChar, 64));
+	}
+
 	createParamLVars(Ty->Params);
 	Fn->Params = Locals;
 

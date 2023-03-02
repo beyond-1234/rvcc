@@ -95,6 +95,7 @@ struct Obj {
 
   Node *Body;    // 函数体
   Obj *Locals;   // 本地变量
+  Obj *VarArea;  // 可变参数区域
   int StackSize; // 栈大小
 };
 
