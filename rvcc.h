@@ -128,7 +128,7 @@ struct Token {
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
 
-	Type *Ty;					// TK_STR使用
+	Type *Ty;					// TK_NUM 和 TK_STR使用
 	char *Str;				// 字符串字面值，包括'\0'
 
 	int LineNo;     // 行号

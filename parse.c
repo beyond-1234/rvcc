@@ -1,6 +1,4 @@
 #include "rvcc.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 // 局部和全局变量或是typedef, enum常量的域
 typedef struct VarScope VarScope;
@@ -2648,6 +2646,8 @@ static Node *primary(Token **Rest, Token *Tok) {
 	// 如果是数字
 	if(Tok->Kind == TK_NUM) {
 		Node *Nod = newNum(Tok->Val, Tok);
+		// 设置类型为终结符的类型
+		Nod->Ty = Tok->Ty;
 		*Rest = Tok->Next;
 		return Nod;
 	}
