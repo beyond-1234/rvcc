@@ -178,7 +178,7 @@ static bool isKeyword(Token *Tok) {
       "sizeof", "char",     "struct", "union", "long",    "short",
       "void",   "typedef",  "_Bool",  "enum",  "static",  "goto",
       "break",  "continue", "switch", "case",  "default", "extern",
-			"_Alignof", "_Alignas", "do", "signed"
+			"_Alignof", "_Alignas", "do", "signed", "unsigned"
   };
 
   // 遍历关键字列表匹配
@@ -331,7 +331,7 @@ static Token *readIntLiteral(char *Start) {
   }
 
   // 将字符串转换为Base进制的数字
-  long Val = strtoul(P, &P, Base);
+  int64_t Val = strtoul(P, &P, Base);
   if (isalnum(*P))
     errorAt(P, "invalid digit");
 

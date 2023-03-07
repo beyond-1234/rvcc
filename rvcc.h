@@ -197,6 +197,7 @@ struct Type {
 	TypeKind Kind;		// 种类
 	int Size;					// 大小，sizeof返回的值
 	int Align;				// 对其量
+	bool IsUnsigned;	// 是否为无符号的
 
 	Type *Base;				// 指向的类型
 	Token *Name;			// 变量名
@@ -234,6 +235,11 @@ extern Type *TyInt;
 extern Type *TyEnum;
 extern Type *TyLong;
 extern Type *TyShort;
+
+extern Type *TyUChar;
+extern Type *TyUInt;
+extern Type *TyULong;
+extern Type *TyUShort;
 
 // 判断是否为整型
 bool isInteger(Type *TY);

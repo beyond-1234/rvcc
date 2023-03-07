@@ -1,4 +1,5 @@
 #include "rvcc.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 // 局部和全局变量或是typedef, enum常量的域
@@ -105,7 +106,7 @@ static bool isTypename(Token *Tok);
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
 //					   | "_Alignas" ("(" typeName | constExpr ")")
-//					   | "signed"
+//					   | "signed" | "unsigned"
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
@@ -545,7 +546,7 @@ static bool isTypename(Token *Tok) {
       "void", "_Bool", "char", "short",
 			"int", "long", "struct", "union",
 			"typedef", "enum", "static", "extern",
-			"_Alignas", "signed"
+			"_Alignas", "signed", "unsigned"
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -645,7 +646,8 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 		INT   = 1 << 8,
 		LONG  = 1 << 10,
 		OTHER = 1 << 12,
-		SIGNED= 1 << 13
+		SIGNED= 1 << 13,
+		UNSIGNED= 1 << 14
 	};
 
 	Type *Ty = TyInt;
@@ -732,6 +734,8 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			Counter += LONG;
 		} else if (equal(Tok, "signed")) {
 			Counter |= SIGNED;
+		} else if (equal(Tok, "unsigned")) {
+			Counter |= UNSIGNED;
 		} else {
 			unreachable();
 		}
@@ -743,9 +747,13 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			case BOOL:
 				Ty = TyBool;
 				break;
-			case CHAR:
 			case SIGNED + CHAR:
 				Ty = TyChar;
+				break;
+			// RISCV中char是无符号的
+			case CHAR:
+			case UNSIGNED + CHAR:
+				Ty = TyUChar;
 				break;
 			case SHORT:
 			case SHORT + INT:
@@ -753,10 +761,18 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			case SIGNED + SHORT + INT:
 				Ty = TyShort;
 				break;
+			case UNSIGNED + SHORT:
+			case UNSIGNED + SHORT + INT:
+				Ty = TyUShort;
+				break;
 			case INT:
 			case SIGNED:
 			case SIGNED + INT:
 				Ty = TyInt;
+				break;
+			case UNSIGNED:
+			case UNSIGNED + INT:
+				Ty = TyUInt;
 				break;
 			case LONG:
 			case LONG + LONG:
@@ -767,6 +783,12 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			case SIGNED + LONG + INT:
 			case SIGNED + LONG + LONG + INT:
 				Ty = TyLong;
+				break;
+			case UNSIGNED + LONG:
+			case UNSIGNED + LONG + LONG:
+			case UNSIGNED + LONG + INT:
+			case UNSIGNED + LONG + LONG + INT:
+				Ty = TyULong;
 				break;
 			default:
 				errorTok(Tok, "invalid type");
