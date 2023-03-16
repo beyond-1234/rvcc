@@ -106,11 +106,14 @@ static bool isTypename(Token *Tok);
 //					   | "_Alignas" ("(" typeName | constExpr ")")
 //					   | "signed" | "unsigned"
 //             | structDecl | unionDecl | typedefName
-//             | enumSpecifier)+
+//             | enumSpecifier
+//             | "const" | "volatile" | "auto" | "register" | "restrict"
+//             | "__restrict" | "__restrict__" | "_Noreturn")+
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident ("{" enumList? "}")?
 // enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)* ","?
-// declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
+// declarator = pointers ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
+// pointers = ("*" ("const" | "volatile" | "restrict")*)*
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
 // funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
@@ -179,7 +182,7 @@ static bool isTypename(Token *Tok);
 //         | str
 //         | num
 // typeName = declspec abstractDeclarator
-// abstractDeclarator = "*"* ("(" abstractDeclarator ")")? typeSuffix
+// abstractDeclarator = pointers ("(" abstractDeclarator ")")? typeSuffix
 // funcall = ident ( assign , assign, * ) )
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
 static Type *typename(Token **Rest, Token *Tok);
@@ -549,10 +552,11 @@ static Obj *newStringLiteral(char *Str, Type *Ty) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
 	static char *Kw[] = {
-      "void", "_Bool", "char", "short",
-			"int", "long", "struct", "union",
-			"typedef", "enum", "static", "extern",
-			"_Alignas", "signed", "unsigned"
+		 "void",       "_Bool",        "char",      "short",    "int",
+      "long",       "struct",       "union",     "typedef",  "enum",
+      "static",     "extern",       "_Alignas",  "signed",   "unsigned",
+      "const",      "volatile",     "auto",      "register", "restrict",
+      "__restrict", "__restrict__", "_Noreturn",
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -683,6 +687,13 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 			Tok = Tok->Next;
 			continue;
 		}
+
+		// 识别这些关键字并忽略
+    if (consume(&Tok, Tok, "const") || consume(&Tok, Tok, "volatile") ||
+        consume(&Tok, Tok, "auto") || consume(&Tok, Tok, "register") ||
+        consume(&Tok, Tok, "restrict") || consume(&Tok, Tok, "__restrict") ||
+        consume(&Tok, Tok, "__restrict__") || consume(&Tok, Tok, "_Noreturn"))
+      continue;
 
 		if (equal(Tok, "_Alignas")) {
 			// 不存在变量属性时，无法设置对齐量
@@ -974,11 +985,25 @@ static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
 	return Ty;
 }
 
+// pointers = ("*" ("const" | "volatile" | "restrict")*)*
+static Type *pointers(Token **Rest, Token *Tok, Type *Ty) {
+  // "*"*
+  // 构建所有的（多重）指针
+  while (consume(&Tok, Tok, "*")) {
+    Ty = pointerTo(Ty);
+    // 识别这些关键字并忽略
+    while (equal(Tok, "const") || equal(Tok, "volatile") ||
+           equal(Tok, "restrict") || equal(Tok, "__restrict") ||
+           equal(Tok, "__restrict__"))
+      Tok = Tok->Next;
+  }
+  *Rest = Tok;
+  return Ty;
+}
+
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 	// 构建所有的(多重)指针
-	while(consume(&Tok, Tok, "*")) {
-		Ty = pointerTo(Ty);
-	}
+	Ty = pointers(&Tok, Tok, Ty);
 
 	// 解析嵌套类型
 	if (equal(Tok, "(")) {
@@ -1008,10 +1033,7 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 
 static Type *abstractDeclarator(Token **Rest, Token *Tok, Type *Ty) {
 	// "*"*
-	while (equal(Tok, "*")) {
-		Ty = pointerTo(Ty);
-		Tok = Tok->Next;
-	}
+	Ty = pointers(&Tok, Tok, Ty);
 
 	// ("(" abstractDeclarator ")")?
 	if (equal(Tok, "(")) {

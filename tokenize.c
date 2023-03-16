@@ -175,11 +175,18 @@ static int readPunct(char *Ptr) {
 static bool isKeyword(Token *Tok) {
   // 关键字列表
   static char *Kw[] = {
-      "return", "if",       "else",   "for",   "while",   "int",
-      "sizeof", "char",     "struct", "union", "long",    "short",
-      "void",   "typedef",  "_Bool",  "enum",  "static",  "goto",
-      "break",  "continue", "switch", "case",  "default", "extern",
-			"_Alignof", "_Alignas", "do", "signed", "unsigned"
+			"return",       "if",        "else",     "for",      "while",
+      "sizeof",   "char",     "struct", "union",  "long",     "short",
+      "int",          "sizeof",    "char",     "struct",   "union",
+      "void",     "typedef",  "_Bool",  "enum",   "static",   "goto",
+      "long",         "short",     "void",     "typedef",  "_Bool",
+      "break",    "continue", "switch", "case",   "default",  "extern",
+      "enum",         "static",    "goto",     "break",    "continue",
+      "_Alignof", "_Alignas", "do",     "signed", "unsigned",
+      "switch",       "case",      "default",  "extern",   "_Alignof",
+      "_Alignas",     "do",        "signed",   "unsigned", "const",
+      "volatile",     "auto",      "register", "restrict", "__restrict",
+      "__restrict__", "_Noreturn",
   };
 
   // 遍历关键字列表匹配
