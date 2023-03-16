@@ -74,6 +74,8 @@ typedef struct Node Node;
 typedef struct Member Member;
 // 重定位
 typedef struct Relocation Relocation;
+// 终结符结构体
+typedef struct Token Token;
 
 // 变量 或 函数
 typedef struct Obj Obj;
@@ -81,6 +83,7 @@ struct Obj {
 	Obj *Next;				// 指向下一对象
 	char *Name;				// 变量名
 	Type *Ty;					// 变量的类型
+	Token *Tok;				// 对应的终结符
 	bool isLocal;			// 是局部变量或全局变量
 	int Align;				// 对齐量
 	int Offset;				// fp的偏移量
@@ -119,8 +122,6 @@ typedef enum {
   TK_EOF,				// 文件终止符，即文件的最后
 } TokenKind;
 
-// 终结符结构体
-typedef struct Token Token;
 struct Token {
   TokenKind Kind; // 种类
   Token *Next;    // 指向下一终结符
@@ -201,6 +202,7 @@ struct Type {
 
 	Type *Base;				// 指向的类型
 	Token *Name;			// 变量名
+	Token *NamePos;		// 名称位置
 
 	// 数组
 	int ArrayLen;			// 数组长度，元素总个数
