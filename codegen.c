@@ -237,7 +237,10 @@ static void genAddr(Node *Nod) {
 				// a0在这里存的是地址而不是数值
 				printLine("  # 获取局部变量%s的栈内地址为%d(fp)", Nod->Var->Name,
 					 Nod->Var->Offset);
-				printLine("  addi a0, fp, %d", Nod->Var->Offset);
+				// 将数据单独存储在临时寄存器中
+				// 以便处理较大的数字，避免指令挤占数据的空间
+				printLine("  li t0, %d", Nod->Var->Offset);
+				printLine("  add a0, fp, t0");
 			} else {
 				printLine("  # 获取全局变量%s的", Nod->Var->Name);
 				// 获取全局变量的地址
@@ -336,8 +339,13 @@ static void genExpr(Node *Nod) {
 			printLine("  # 对%s的内存%d(fp)清零%d位", Nod->Var->Name, Nod->Var->Offset,
 							Nod->Var->Ty->Size);
 			// 对栈内变量所占用的每个字节都进行清零
-			for (int I = 0; I < Nod->Var->Ty->Size; I++)
-				printLine("  sb zero, %d(fp)", Nod->Var->Offset + I);
+			for (int I = 0; I < Nod->Var->Ty->Size; I++) {
+				// 将数据单独存储在临时寄存器中
+				// 以便处理较大的数字，避免指令挤占数据的空间
+				printLine("  li t0, %d", Nod->Var->Offset + I);
+				printLine("  add t0, fp, t0");
+				printLine("  sb zero, 0(t0)");
+			}
 			return;
 		}
 		// 三元表达式
@@ -813,18 +821,22 @@ static void emitData(Obj *Prog) {
 static void storeGeneral(int Reg, int Offset, int Size) {
 	printLine("  # 将%s寄存器的值存入%d(fp)的栈地址", ArgReg[Reg], Offset);
 
+	printLine("  li t0, %d", Offset);
+	printLine("  add t0, fp, t0");
+	// 将数据单独存储在临时寄存器中
+	// 以便处理较大的数字，避免指令挤占数据的空间
 	switch (Size) {
 	case 1:
-		printLine("  sb %s, %d(fp)", ArgReg[Reg++], Offset);
+		printLine("  sb %s, 0(t0)", ArgReg[Reg]);
 		return;
 	case 2:
-		printLine("  sh %s, %d(fp)", ArgReg[Reg++], Offset);
+		printLine("  sh %s, 0(t0)", ArgReg[Reg]);
 		return;
 	case 4:
-		printLine("  sw %s, %d(fp)", ArgReg[Reg++], Offset);
+		printLine("  sw %s, 0(t0)", ArgReg[Reg]);
 		return;
 	case 8:
-		printLine("  sd %s, %d(fp)", ArgReg[Reg++], Offset);
+		printLine("  sd %s, 0(t0)", ArgReg[Reg]);
 		return;
 	}
 
@@ -881,8 +893,11 @@ static void emitText(Obj *Prog) {
 		printLine("  mv fp, sp");
 
 		// 偏移量为实际变量所用的栈大小
+		// 将数据单独存储在临时寄存器中
+		// 以便处理较大的数字，避免指令挤占数据的空间
 		printLine("  # sp腾出StackSize大小的栈空间");
-		printLine("  addi sp, sp, -%d", Fn->StackSize);
+		printLine("  li t0, -%d", Fn->StackSize);
+		printLine("  add sp, sp, t0");
 
 		// 由于方法参数与a0,a1...寄存器自动对应
 		// 所以我们要将形参跟寄存器对应起来
