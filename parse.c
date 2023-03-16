@@ -115,7 +115,7 @@ static bool isTypename(Token *Tok);
 // declarator = pointers ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // pointers = ("*" ("const" | "volatile" | "restrict")*)*
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
-// arrayDimensions = constExpr? "]" typeSuffix
+// arrayDimensions = ("static" | "restrict")* constExpr? "]" typeSuffix
 // funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
@@ -956,6 +956,11 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 // 数组维数
 // arrayDimensions = num? "]" typeSuffix
 static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty) {
+	// 如果数组维度中出现了static和restrict关键字则忽略
+	// ex: int args[restrict static 3]
+  while (equal(Tok, "static") || equal(Tok, "restrict"))
+    Tok = Tok->Next;
+
 	// "]" 无数组维数的 "[]"
 	if (equal(Tok, "]")) {
 		// 再解析一下用于多维数组的情况
