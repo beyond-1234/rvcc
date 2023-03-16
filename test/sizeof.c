@@ -87,6 +87,9 @@ int main() {
   ASSERT(4, sizeof(1?(short)2:(char)3));
   ASSERT(8, sizeof(1?(long)2:(char)3));
 
+  // [133] 在一些表达式中用long或unsigned long 代替int
+  ASSERT(1, sizeof(char) << 31 >> 31);
+  ASSERT(1, sizeof(char) << 63 >> 63);
   printf("OK\n");
   return 0;
 }
