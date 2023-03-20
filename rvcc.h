@@ -125,7 +125,8 @@ typedef enum {
 struct Token {
   TokenKind Kind; // 种类
   Token *Next;    // 指向下一终结符
-  int64_t Val;        // 值
+  int64_t Val;	  // TK_NUM值
+	double FVal;	  // TK_NUM浮点值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
 
@@ -176,7 +177,8 @@ struct Node {
 	Node *DefaultCase; // 默认case
 
 	Obj *Var;					// 存储ND_VAR的变量
-	int64_t Val;					// 存储ND_NUM种类的值
+	int64_t Val;			// 存储ND_NUM种类的值
+	double FVal;	    // TK_NUM浮点值
 };
 
 typedef enum {
@@ -185,6 +187,8 @@ typedef enum {
 	TY_BOOL,	// _Bool 类型
 	TY_INT,		// int 整型
 	TY_LONG,	// long 长整型
+	TY_FLOAT,	// float 类型
+	TY_DOUBLE,	// double 类型
 	TY_SHORT,	// short 短整型
 	TY_ENUM,	// 枚举类型
 	TY_PTR,		// 指针
@@ -237,6 +241,8 @@ extern Type *TyInt;
 extern Type *TyEnum;
 extern Type *TyLong;
 extern Type *TyShort;
+extern Type *TyFloat;
+extern Type *TyDouble;
 
 extern Type *TyUChar;
 extern Type *TyUInt;
@@ -245,6 +251,8 @@ extern Type *TyUShort;
 
 // 判断是否为整型
 bool isInteger(Type *TY);
+// 判断是否为浮点类型
+bool isFloNum(Type *TY);
 // 为节点内的所有节点添加类型
 void addType(Node *Nod);
 // 构建一个指针类型，并指向基类

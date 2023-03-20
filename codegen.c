@@ -281,11 +281,36 @@ static void genExpr(Node *Nod) {
 		case ND_NULL_EXPR:
 			return;
 		// li为addi别名指令，加载一个立即数到寄存器中
-		// 加载数字到a0
-		case ND_NUM:
-			printLine("  # 将%d加载到a0中", Nod->Val);
-			printLine("  li a0, %ld", Nod->Val);
-			return;
+		case ND_NUM: {
+			// float和uint32 double和uint64 共用一份内存空间
+			// 存储F32 读取U32；存储F64 读取U64
+			// 存浮点读整型，方便存储a0寄存器
+			 union {
+				 float F32;
+				 double F64;
+				 uint32_t U32;
+				 uint64_t U64;
+			 } U;
+			 switch (Nod->Ty->Kind) {
+				 case TY_FLOAT:
+					 U.F32 = Nod->Val;
+					 printLine("  # 将%f加载到fa0中", Nod->FVal);
+					 printLine("  li a0, %u # float %f", U.U32, Nod->FVal);
+					 printLine("  fmv.w.x fa0, a0");
+					 return;
+				 case TY_DOUBLE:
+					 U.F64 = Nod->FVal;
+					 printLine("  # 将%f加载到fa0中", Nod->FVal);
+					 printLine("  li a0, %lu # float %f", U.U64, Nod->FVal);
+					 printLine("  fmv.d.x fa0, a0");
+					 return;
+				 default:
+					 printLine("  # 将%d加载到a0中", Nod->Val);
+
+					 printLine("  li a0, %ld", Nod->Val);
+					 return;
+			 }
+		 }
 		// 识别到负号对寄存器取反
 		case ND_NEG:
 			// 我们生成单叉树时只使用左子树

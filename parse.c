@@ -2708,7 +2708,15 @@ static Node *primary(Token **Rest, Token *Tok) {
 
 	// 如果是数字
 	if(Tok->Kind == TK_NUM) {
-		Node *Nod = newNum(Tok->Val, Tok);
+		Node *Nod;
+		if (isFloNum(Tok->Ty)) {
+			// 浮点数节点
+			Nod = newNode(ND_NUM, Tok);
+			Nod->Val = Tok->Val;
+		} else {
+			// 整型节点
+			Nod = newNum(Tok->Val, Tok);
+		}
 		// 设置类型为终结符的类型
 		Nod->Ty = Tok->Ty;
 		*Rest = Tok->Next;

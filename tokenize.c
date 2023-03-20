@@ -1,5 +1,4 @@
 #include "rvcc.h"
-#include <strings.h>
 
 // 输入的文件名
 static char *CurrentFilename;
@@ -370,10 +369,6 @@ static Token *readIntLiteral(char *Start) {
 		U = true;
 	}
 
-	// 匹配完成之后不应该有数字
-  if (isalnum(*P))
-    errorAt(P, "invalid digit");
-
 	// 推断类型
 	Type *Ty;
 	if (Base == 10) {
@@ -409,6 +404,37 @@ static Token *readIntLiteral(char *Start) {
   Tok->Val = Val;
 	Tok->Ty = Ty;
   return Tok;
+}
+
+// 读取数字
+static Token *readNumber(char *Start) {
+	// 尝试解析整型常量
+	Token *Tok = readIntLiteral(Start);
+	// 不带e或f后缀则为整型
+	if (!strchr(".eEfF", Start[Tok->Len]))
+		return Tok;
+
+	// 如果不是整型则为浮点型
+	char *End;
+	double Val = strtod(Start, &End);
+
+	// 处理浮点数后缀
+	Type *Ty;
+	if (*End == 'f' || *End == 'F') {
+		Ty = TyFloat;
+		End++;
+	} else if (*End == 'l' || *End == 'L') {
+		Ty = TyDouble;
+		End++;
+	} else {
+		Ty = TyDouble;
+	}
+
+	// 构建浮点数终结符
+	Tok = newToken(TK_NUM, Start, End);
+	Tok->FVal = Val;
+	Tok->Ty = Ty;
+	return Tok;
 }
 
 // 将名为“return”的终结符转为KEYWORD
@@ -467,9 +493,9 @@ Token *tokenize(char *Filename, char *P) {
     }
 
     // 解析数字
-    if (isdigit(*P)) {
-      // 读取数字字面量
-      Cur->Next = readIntLiteral(P);
+    if (isdigit(*P) || (*P == '.' && isdigit(P[1]))) {
+			Cur->Next = readNumber(P);
+
       // 指针前进
       Cur = Cur->Next;
       P += Cur->Len;

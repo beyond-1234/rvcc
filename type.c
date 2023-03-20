@@ -9,6 +9,9 @@ Type *TyShort		= &(Type){TY_SHORT, 2, 2};
 Type *TyInt			= &(Type){TY_INT,		4, 4};
 Type *TyLong		= &(Type){TY_LONG,	8, 8};
 
+Type *TyFloat			= &(Type){TY_FLOAT,		4, 4};
+Type *TyDouble		= &(Type){TY_DOUBLE,	8, 8};
+
 Type *TyUChar		= &(Type){TY_CHAR,	1, 1, true};
 Type *TyUShort	= &(Type){TY_SHORT, 2, 2, true};
 Type *TyUInt		= &(Type){TY_INT,		4, 4, true};
@@ -26,6 +29,11 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 bool isInteger(Type *Ty) {
 	return Ty->Kind == TY_BOOL || Ty->Kind == TY_CHAR || Ty->Kind == TY_INT
 		|| Ty->Kind == TY_LONG || Ty->Kind == TY_SHORT || Ty->Kind == TY_ENUM;
+}
+
+// 判断Type是否为浮点数
+bool isFloNum(Type *Ty) {
+  return Ty->Kind == TY_FLOAT || Ty->Kind == TY_DOUBLE;
 }
 
 Type *copyType(Type *Ty) {
